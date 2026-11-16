@@ -51,7 +51,7 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
             <div className="text-xs text-muted">{ROLE_LABEL[profile.role]}</div>
           </div>
           <button className="btn btn-sm btn-ghost" onClick={signOut}>
-            Sortir
+            Déconnexion
           </button>
         </div>
       </header>

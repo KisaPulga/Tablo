@@ -63,16 +63,13 @@ export default function TicketPage() {
 
   // ---------- état local de saisie ----------
   const [lines, setLines] = useState<Line[]>([])
-  const [note, setNote] = useState('')
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [openNote, setOpenNote] = useState<string | null>(null)
   const linesRef = useRef(lines)
-  const noteRef = useRef(note)
   const dirtyRef = useRef(dirty)
   useEffect(() => {
     linesRef.current = lines
-    noteRef.current = note
     dirtyRef.current = dirty
   })
 
@@ -92,7 +89,6 @@ export default function TicketPage() {
       // ticket verrouillé (pris par le bar, servi, annulé) : on affiche la version serveur
       if (dirty) setDirty(false)
       setLines(linesFromTicket(ticket))
-      setNote(ticket.note ?? '')
     }
   }
 
@@ -101,16 +97,13 @@ export default function TicketPage() {
       setSaving(true)
       const payload = linesRef.current.map((l) => ({ product_id: l.product_id, quantity: l.quantity, note: l.note }))
       const savedLines = linesRef.current
-      const savedNote = noteRef.current
       const ok = await toast.attempt(send ? 'Envoi au bar' : 'Enregistrement', async () => {
-        must(
-          await sb().rpc('save_ticket', { p_ticket_id: id, p_note: savedNote, p_items: payload, p_send: send }),
-        )
+        must(await sb().rpc('save_ticket', { p_ticket_id: id, p_note: null, p_items: payload, p_send: send }))
       })
       setSaving(false)
       if (ok) {
         // si rien n'a changé pendant l'envoi, la saisie est à jour
-        if (linesRef.current === savedLines && noteRef.current === savedNote) setDirty(false)
+        if (linesRef.current === savedLines) setDirty(false)
         reload()
       } else {
         reload()
@@ -125,14 +118,14 @@ export default function TicketPage() {
     if (!dirty || !isDraft) return
     const t = setTimeout(() => void save(false), 700)
     return () => clearTimeout(t)
-  }, [dirty, isDraft, lines, note, save])
+  }, [dirty, isDraft, lines, save])
 
   // en quittant la page avec un brouillon non enregistré
   useEffect(() => {
     return () => {
       if (dirtyRef.current && isDraft) {
         const payload = linesRef.current.map((l) => ({ product_id: l.product_id, quantity: l.quantity, note: l.note }))
-        void sb().rpc('save_ticket', { p_ticket_id: id, p_note: noteRef.current, p_items: payload, p_send: false })
+        void sb().rpc('save_ticket', { p_ticket_id: id, p_note: null, p_items: payload, p_send: false })
       }
     }
   }, [id, isDraft])
@@ -313,21 +306,6 @@ export default function TicketPage() {
             )}
           </div>
         ))}
-        <div className="px-4 py-3">
-          {editable ? (
-            <textarea
-              className="input min-h-16"
-              placeholder="Note pour tout le ticket (optionnel)"
-              value={note}
-              onChange={(e) => {
-                setNote(e.target.value)
-                setDirty(true)
-              }}
-            />
-          ) : (
-            ticket.note && <p className="text-amber-300">📝 {ticket.note}</p>
-          )}
-        </div>
         <div className="flex items-center justify-between px-4 py-3 text-xl font-bold">
           <span>Total</span>
           <span>{formatPrice(total)}</span>
@@ -351,8 +329,8 @@ export default function TicketPage() {
           </button>
         )}
         {canCancel && (
-          <ConfirmButton className="btn btn-danger flex-1" onConfirm={() => setStatus('annule', 'Ticket annulé')}>
-            Annuler le ticket
+          <ConfirmButton className="btn btn-danger flex-1" onConfirm={() => setStatus('annule', 'Ticket supprimé')}>
+            Supprimer le ticket
           </ConfirmButton>
         )}
       </div>

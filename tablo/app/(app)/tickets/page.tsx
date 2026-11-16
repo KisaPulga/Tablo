@@ -97,7 +97,6 @@ export default function TicketsPage() {
             tableName={tableNames.get(t.table_id)}
             waiterName={names.get(t.waiter_id)}
             now={now}
-            mine={t.waiter_id === me.id}
           />
         ))}
       </div>

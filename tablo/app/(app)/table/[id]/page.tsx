@@ -40,6 +40,7 @@ export default function TablePage() {
 
   const names = new Map(data.profiles.map((p) => [p.id, p.display_name]))
   const counted = data.tickets.filter((t) => isCounted(t.status))
+  const visible = data.tickets.filter((t) => t.status !== 'annule') // tickets supprimés masqués
   const total = counted.reduce((s, t) => s + itemsTotal(t.ticket_items), 0)
 
   // détail par serveur
@@ -87,9 +88,9 @@ export default function TablePage() {
       </button>
 
       <div className="space-y-3">
-        {data.tickets.length === 0 && <p className="text-center text-muted">Aucun ticket pour cette table.</p>}
-        {data.tickets.map((t) => (
-          <TicketCard key={t.id} ticket={t} waiterName={names.get(t.waiter_id)} now={now} mine={t.waiter_id === me.id} />
+        {visible.length === 0 && <p className="text-center text-muted">Aucun ticket pour cette table.</p>}
+        {visible.map((t) => (
+          <TicketCard key={t.id} ticket={t} waiterName={names.get(t.waiter_id)} now={now} />
         ))}
       </div>
     </div>

@@ -219,7 +219,6 @@ export function BarScreen({ profile }: { profile: Profile }) {
                           </li>
                         ))}
                       </ul>
-                      {t.note && <p className="mt-2 rounded-lg bg-amber-400/15 p-2 text-lg text-amber-200">📝 {t.note}</p>}
                       {col.key === 'envoye' && (
                         <button
                           className="btn btn-primary mt-3 w-full py-4 text-xl"
