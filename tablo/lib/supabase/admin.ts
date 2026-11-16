@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-
+import 'server-only'
 /**
  * Client « administrateur » (clé secrète) : contourne la RLS.
  * À n'utiliser QUE dans du code serveur (Server Actions), jamais dans un composant client.

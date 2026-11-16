@@ -39,7 +39,7 @@ export function TicketCard({
   return (
     <div className={`card relative ${mine ? 'border-l-4 border-l-white' : ''} ${cancelled ? 'opacity-50' : ''}`}>
       <Link href={`/ticket/${ticket.id}`} className="block p-4 active:scale-[0.99]">
-        <div className={`flex flex-wrap items-center gap-2 ${canDelete ? 'pr-24' : ''}`}>
+        <div className={`flex flex-wrap items-center gap-2 ${canDelete ? 'pr-12' : ''}`}>
           <span className="font-bold">#{ticket.number}</span>
           {tableName && <span className="font-semibold">{tableName}</span>}
           <StatusChip status={ticket.status} />
@@ -64,8 +64,24 @@ export function TicketCard({
       </Link>
       {canDelete && (
         <div className="absolute top-3 right-3">
-          <ConfirmButton className="btn btn-sm btn-danger" confirmLabel="Sûr ?" onConfirm={remove}>
-            Supprimer
+          <ConfirmButton className="btn btn-sm btn-danger min-w-11 px-2" confirmLabel="Sûr ?" onConfirm={remove}>
+            <svg
+              aria-label="Supprimer"
+              role="img"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 6h18" />
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6M14 11v6" />
+            </svg>
           </ConfirmButton>
         </div>
       )}
