@@ -1,2 +1,3 @@
 .env*
 tablo/supabase/04_setAdmin.sql
+contextApp.md

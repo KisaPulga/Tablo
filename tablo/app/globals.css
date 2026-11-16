@@ -1,26 +1,77 @@
 @import "tailwindcss";
 
+/* Thème unique : sombre, bleu nuit */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --background: #07142b;
+  --surface: #0d1f3f;
+  --surface-2: #142b52;
+  --line: #24406f;
+  --foreground: #f1f5ff;
+  --muted: #9fb3d6;
+  --accent: #2f6fed;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  /* Boutons : bordure blanche, cible tactile ≥ 44 px */
+  .btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-white
+      bg-surface px-4 py-2 font-semibold text-white select-none transition
+      active:scale-[0.97] disabled:opacity-40 disabled:active:scale-100;
+  }
+  .btn-primary {
+    @apply bg-accent;
+  }
+  .btn-danger {
+    @apply bg-red-700;
+  }
+  .btn-success {
+    @apply bg-emerald-700;
+  }
+  .btn-ghost {
+    @apply bg-transparent;
+  }
+  .btn-sm {
+    @apply min-h-9 rounded-lg px-3 py-1 text-sm;
+  }
+
+  .card {
+    @apply rounded-2xl border border-line bg-surface;
+  }
+
+  .input {
+    @apply min-h-11 w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-base text-white
+      placeholder:text-muted focus:border-white focus:outline-none;
+  }
+
+  .chip {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold whitespace-nowrap;
+  }
+}
+
+@keyframes flash {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(47, 111, 237, 0.45); }
+}
+.animate-flash {
+  animation: flash 0.5s ease-in-out 3;
 }
