@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { sb } from '@/lib/live'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -15,8 +15,7 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await sb().auth.signInWithPassword({ email: email.trim(), password })
     setLoading(false)
     if (error) {
       setError('Email ou mot de passe incorrect.')
@@ -27,31 +26,33 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-4">
+    <main className="flex min-h-screen items-center justify-center p-4">
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-bold text-center">Connexion</h1>
+        <div className="text-center">
+          <h1 className="text-4xl font-black tracking-tight">Tablo</h1>
+          <p className="text-muted">Connexion réservée aux invités</p>
+        </div>
         <input
           type="email"
           placeholder="Email"
+          autoComplete="email"
+          autoCapitalize="none"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full border rounded-lg p-3 text-lg"
+          className="input text-lg"
         />
         <input
           type="password"
           placeholder="Mot de passe"
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="w-full border rounded-lg p-3 text-lg"
+          className="input text-lg"
         />
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-black text-white rounded-lg p-3 text-lg disabled:opacity-50"
-        >
+        {error && <p className="text-sm text-red-300">{error}</p>}
+        <button type="submit" disabled={loading} className="btn btn-primary w-full py-3 text-lg">
           {loading ? 'Connexion…' : 'Se connecter'}
         </button>
       </form>
