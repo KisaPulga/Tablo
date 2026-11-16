@@ -37,7 +37,8 @@ export function Toaster({ children }: { children: React.ReactNode }) {
   const push = useCallback(
     (t: Omit<Toast, 'id'>) => {
       const id = nextId.current++
-      setToasts((list) => [...list.slice(-3), { ...t, id }])
+      // une même erreur répétée (ex. enregistrement auto) remplace la précédente au lieu de s'empiler
+      setToasts((list) => [...list.filter((x) => x.message !== t.message).slice(-3), { ...t, id }])
       // les erreurs restent jusqu'à action de l'utilisateur
       if (t.kind !== 'error') setTimeout(() => dismiss(id), 2500)
     },
