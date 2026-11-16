@@ -8,7 +8,7 @@ import { useToast } from '@/components/Toaster'
 import { ConfirmButton, Loading, StatusChip } from '@/components/ui'
 import { formatAgo, formatPrice, formatTime, itemsCount, itemsTotal } from '@/lib/format'
 import { must, sb, useLive, useNow } from '@/lib/live'
-import type { Category, DiningTable, Product, TicketWithItems } from '@/lib/types'
+import type { DiningTable, Product, TicketWithItems } from '@/lib/types'
 
 type Line = {
   product_id: string
@@ -44,21 +44,19 @@ export default function TicketPage() {
         await sb().from('tickets').select('*, ticket_items(*)').eq('id', id).maybeSingle(),
       ) as TicketWithItems | null
       if (!ticket) return null
-      const [table, waiter, products, categories] = await Promise.all([
+      const [table, waiter, products] = await Promise.all([
         sb().from('tables').select('*').eq('id', ticket.table_id).maybeSingle(),
         sb().from('profiles').select('display_name').eq('id', ticket.waiter_id).maybeSingle(),
         sb().from('products').select('*').order('sort_order').order('name'),
-        sb().from('categories').select('*').order('sort_order').order('name'),
       ])
       return {
         ticket,
         table: must(table) as DiningTable | null,
         waiterName: (must(waiter) as { display_name: string } | null)?.display_name ?? '?',
         products: must(products) as Product[],
-        categories: must(categories) as Category[],
       }
     },
-    { tables: ['tickets', 'ticket_items', 'products', 'categories'], key: id },
+    { tables: ['tickets', 'ticket_items', 'products'], key: id },
   )
 
   // ---------- état local de saisie ----------
@@ -134,7 +132,7 @@ export default function TicketPage() {
   if (!data) return error ? <Loading error={error} /> : <p className="card p-4">Ticket introuvable.</p>
   if (!ticket) return <p className="card p-4">Ticket introuvable.</p>
 
-  const { products, categories, table, waiterName } = data
+  const { products, table, waiterName } = data
 
   function change(fn: (l: Line[]) => Line[]) {
     setLines((prev) => fn(prev))
@@ -182,10 +180,6 @@ export default function TicketPage() {
   const total = itemsTotal(lines)
   const qtyByProduct = new Map(lines.map((l) => [l.product_id, l.quantity]))
   const available = products.filter((p) => p.is_available)
-  const groups = [
-    ...categories.map((c) => ({ id: c.id, name: c.name, items: available.filter((p) => p.category_id === c.id) })),
-    { id: 'none', name: 'Autres', items: available.filter((p) => !p.category_id || !categories.some((c) => c.id === p.category_id)) },
-  ].filter((g) => g.items.length > 0)
 
   const canServe = (isOwner || isAdmin) && ['envoye', 'en_preparation', 'pret'].includes(ticket.status)
   const canCancel =
@@ -217,21 +211,9 @@ export default function TicketPage() {
       {/* ---------- choix des produits ---------- */}
       {editable && (
         <section className="space-y-3">
-          {groups.length > 1 && (
-            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-              {groups.map((g) => (
-                <a key={g.id} href={`#cat-${g.id}`} className="btn btn-sm btn-ghost shrink-0">
-                  {g.name}
-                </a>
-              ))}
-            </div>
-          )}
-          {groups.length === 0 && <p className="card p-4 text-muted">Aucun produit disponible dans le menu.</p>}
-          {groups.map((g) => (
-            <div key={g.id} id={`cat-${g.id}`} className="scroll-mt-32">
-              <h2 className="mb-2 text-sm font-bold tracking-wide text-muted uppercase">{g.name}</h2>
+          {available.length === 0 && <p className="card p-4 text-muted">Aucun produit disponible dans le menu.</p>}
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {g.items.map((p) => {
+                {available.map((p) => {
                   const q = qtyByProduct.get(p.id)
                   return (
                     <button
@@ -252,8 +234,6 @@ export default function TicketPage() {
                   )
                 })}
               </div>
-            </div>
-          ))}
         </section>
       )}
 

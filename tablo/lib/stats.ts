@@ -4,8 +4,6 @@ import { isCounted, type TicketWithItems } from '@/lib/types'
 export type Lookup = {
   waiterName: (id: string) => string
   tableName: (id: string) => string
-  /** catégorie d'une ligne (via le produit d'origine) */
-  categoryOf: (productId: string | null) => string
 }
 
 export type Agg = { key: string; label: string; tickets: number; items: number; cents: number }
@@ -63,7 +61,6 @@ export type StatsFilters = {
   from: number | null
   to: number | null
   waiterId: string
-  category: string
   bucketMinutes: 15 | 60
 }
 
@@ -82,12 +79,7 @@ export function computeStats(all: TicketWithItems[], lk: Lookup, f: StatsFilters
   })
   const counted = sent.filter((t) => isCounted(t.status))
 
-  // lignes filtrées par catégorie
-  const lines = counted.flatMap((t) =>
-    t.ticket_items
-      .filter((i) => !f.category || lk.categoryOf(i.product_id) === f.category)
-      .map((i) => ({ t, i, cents: i.quantity * i.unit_price_cents, cat: lk.categoryOf(i.product_id) })),
-  )
+  const lines = counted.flatMap((t) => t.ticket_items.map((i) => ({ t, i, cents: i.quantity * i.unit_price_cents })))
   const ticketIds = new Set(lines.map((l) => l.t.id))
   const totalCents = lines.reduce((s, l) => s + l.cents, 0)
   const totalItems = lines.reduce((s, l) => s + l.i.quantity, 0)
@@ -110,16 +102,14 @@ export function computeStats(all: TicketWithItems[], lk: Lookup, f: StatsFilters
     }
   }
 
-  // ---- produits / catégories / serveurs / tables ----
+  // ---- produits / serveurs / tables ----
   const products = new Map<string, Agg>()
-  const categories = new Map<string, Agg>()
   const waiters = new Map<string, Agg>()
   const tables = new Map<string, Agg>()
   const seenW = new Set<string>()
   const seenT = new Set<string>()
   for (const l of lines) {
     bump(products, l.i.product_name, l.i.product_name, l.i.quantity, l.cents)
-    bump(categories, l.cat, l.cat, l.i.quantity, l.cents)
     bump(waiters, l.t.waiter_id, lk.waiterName(l.t.waiter_id), l.i.quantity, l.cents, !seenW.has(l.t.id))
     seenW.add(l.t.id)
     bump(tables, l.t.table_id, lk.tableName(l.t.table_id), l.i.quantity, l.cents, !seenT.has(l.t.id))
@@ -168,7 +158,6 @@ export function computeStats(all: TicketWithItems[], lk: Lookup, f: StatsFilters
     avgItems: nTickets ? totalItems / nTickets : 0,
     timeline,
     products: [...products.values()],
-    categories: [...categories.values()].sort(byCents),
     waiters: [...waiters.values()].sort(byCents),
     tables: [...tables.values()].sort(byCents),
     serviceGlobal,
