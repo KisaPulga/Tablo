@@ -5,7 +5,7 @@ import { FloorPlanCanvas, labelStyle, tableBoxStyle } from '@/components/FloorPl
 import { useToast } from '@/components/Toaster'
 import { ConfirmButton } from '@/components/ui'
 import { must, sb } from '@/lib/live'
-import { clamp, compressImage, isPlaced, saveSetting, usePlanSettings } from '@/lib/plan'
+import { clamp, isPlaced, saveSetting, usePlanSettings } from '@/lib/plan'
 import type { DiningTable } from '@/lib/types'
 
 type Geo = Pick<DiningTable, 'pos_x' | 'pos_y' | 'width' | 'height' | 'shape' | 'rotation'>
@@ -30,9 +30,7 @@ export function PlanEditor({ tables, reload }: { tables: DiningTable[]; reload: 
   const toast = useToast()
   const { settings, reload: reloadSettings } = usePlanSettings()
   const canvasRef = useRef<HTMLDivElement>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
   const [selected, setSelected] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
 
   // modifications locales en cours (déplacement / redimensionnement), prioritaires sur la base
   const [overrides, setOverrides] = useState<Record<string, Partial<Geo>>>({})
@@ -135,23 +133,6 @@ export function PlanEditor({ tables, reload }: { tables: DiningTable[]; reload: 
     )
   }
 
-  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-    setUploading(true)
-    const ok = await toast.attempt('Image du plan', async () => {
-      const { dataUrl, aspect } = await compressImage(file)
-      await saveSetting('floor_plan', dataUrl)
-      await saveSetting('floor_aspect', String(aspect))
-    })
-    setUploading(false)
-    if (ok) {
-      toast.success('Plan importé ✔')
-      void reloadSettings()
-    }
-  }
-
   async function setAspect(aspect: number) {
     const ok = await toast.attempt('Format du plan', () => saveSetting('floor_aspect', String(aspect)))
     if (ok) void reloadSettings()
@@ -168,24 +149,21 @@ export function PlanEditor({ tables, reload }: { tables: DiningTable[]; reload: 
     <div className="space-y-4">
       {/* ---------- fond du plan ---------- */}
       <div className="flex flex-wrap items-center gap-2">
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
-        <button className="btn btn-sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
-          {uploading ? 'Import…' : settings.image ? "Changer l'image du plan" : '🖼 Importer une image du plan'}
-        </button>
-        {settings.image ? (
+        <span className="text-sm text-muted">Format :</span>
+        {ASPECTS.map((a) => (
+          <button
+            key={a.label}
+            className={`btn btn-sm ${Math.abs(settings.aspect - a.value) < 0.01 ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setAspect(a.value)}
+          >
+            {a.label}
+          </button>
+        ))}
+        {/* image importée auparavant : on peut encore la retirer */}
+        {settings.image && (
           <ConfirmButton className="btn btn-sm btn-ghost" onConfirm={removeImage}>
             Retirer l&apos;image
           </ConfirmButton>
-        ) : (
-          ASPECTS.map((a) => (
-            <button
-              key={a.label}
-              className={`btn btn-sm ${Math.abs(settings.aspect - a.value) < 0.01 ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setAspect(a.value)}
-            >
-              {a.label}
-            </button>
-          ))
         )}
       </div>
 

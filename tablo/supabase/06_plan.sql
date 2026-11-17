@@ -15,7 +15,7 @@ alter table public.tables
 alter table public.tables drop constraint if exists tables_shape_check;
 alter table public.tables add constraint tables_shape_check check (shape in ('rect', 'round'));
 
--- Réglages globaux (image du plan, format du plan)
+-- Réglages globaux : format du plan (clé 'floor_aspect' = largeur / hauteur)
 create table if not exists public.settings (
   key text primary key,
   value text,
@@ -31,6 +31,9 @@ create policy "settings: lecture" on public.settings for select to authenticated
 drop policy if exists "settings: admin écrit" on public.settings;
 create policy "settings: admin écrit" on public.settings for all to authenticated
   using (public.my_role() = 'admin') with check (public.my_role() = 'admin');
+
+-- Nettoyage : l'image de fond du plan n'est plus utilisée
+delete from public.settings where key = 'floor_plan';
 
 -- Recharge le cache de l'API pour voir les nouvelles colonnes tout de suite
 notify pgrst, 'reload schema';
