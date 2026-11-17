@@ -272,13 +272,23 @@ export default function TicketPage() {
               )}
             </div>
             {editable && openNote === l.product_id ? (
-              <input
-                className="input mt-2"
-                autoFocus
-                placeholder="Note (ex. sans glaçons)"
-                value={l.note}
-                onChange={(e) => setLineNote(l.product_id, e.target.value)}
-              />
+              <div className="mt-2 flex gap-2">
+                {[
+                  { label: 'Rien', value: '' },
+                  { label: 'Tempéré', value: 'Tempéré' },
+                ].map((o) => (
+                  <button
+                    key={o.label}
+                    className={`btn btn-sm flex-1 ${l.note === o.value ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => {
+                      setLineNote(l.product_id, o.value)
+                      setOpenNote(null)
+                    }}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
             ) : (
               l.note && <div className="mt-1 text-sm text-amber-300">— {l.note}</div>
             )}
