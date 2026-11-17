@@ -67,7 +67,7 @@ export function UsersAdmin({ users, meId, configError }: { users: UserRow[]; meI
         </div>
         <input
           className="input"
-          placeholder="Nom affiché (ex. Léa)"
+          placeholder="Nom affiché"
           value={form.display_name}
           onChange={(e) => setForm({ ...form, display_name: e.target.value })}
           required
