@@ -63,7 +63,7 @@ export default function SetPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
+    <main className="flex flex-1 justify-center px-4 pt-[12dvh] pb-8">
       <div className="w-full max-w-sm space-y-4">
         <h1 className="text-center text-3xl font-black">Bienvenue sur Tablo</h1>
         {error && <p className="card border-red-500 p-3 text-red-200">{error}</p>}

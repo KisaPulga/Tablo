@@ -26,7 +26,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
+    <main className="fixed inset-0 flex touch-none justify-center overflow-hidden overscroll-none px-4 pt-[12dvh] pb-8">
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
         <div className="text-center">
           <h1 className="text-4xl font-black tracking-tight">Tablo</h1>
