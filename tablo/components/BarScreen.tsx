@@ -107,7 +107,7 @@ export function BarScreen({ profile }: { profile: Profile }) {
 
   async function advance(t: TicketWithItems, status: TicketStatus) {
     setBusy((b) => new Set(b).add(t.id))
-    await toast.attempt(status === 'pret' ? 'Passage en « Prêt »' : 'Prise en charge', async () => {
+    await toast.attempt('Passage en « Prêt »', async () => {
       must(await sb().from('tickets').update({ status }).eq('id', t.id).eq('status', t.status).select('id').single())
     })
     setBusy((b) => {
@@ -123,12 +123,12 @@ export function BarScreen({ profile }: { profile: Profile }) {
   const tickets = data?.tickets ?? []
   const columns: { key: TicketStatus; title: string; color: string }[] = [
     { key: 'envoye', title: 'Nouveau', color: 'border-sky-400' },
-    { key: 'en_preparation', title: 'En préparation', color: 'border-amber-400' },
     { key: 'pret', title: 'Prêt', color: 'border-emerald-400' },
   ]
+  // les anciens tickets « en préparation » restent affichés dans la colonne d'attente
   const byCol = (s: TicketStatus) =>
     tickets
-      .filter((t) => t.status === s)
+      .filter((t) => (s === 'envoye' ? t.status === 'envoye' || t.status === 'en_preparation' : t.status === s))
       .sort((a, b) => {
         const ka = s === 'pret' ? a.ready_at : a.sent_at
         const kb = s === 'pret' ? b.ready_at : b.sent_at
@@ -173,7 +173,7 @@ export function BarScreen({ profile }: { profile: Profile }) {
       {error && <div className="bg-red-800 px-4 py-1 text-sm">Erreur : {error} — nouvel essai automatique</div>}
 
       {/* ---------- colonnes ---------- */}
-      <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden pt-3 pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] md:grid-cols-3">
+      <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden pt-3 pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] md:grid-cols-2">
         {columns.map((col) => {
           const list = byCol(col.key)
           return (
@@ -219,15 +219,6 @@ export function BarScreen({ profile }: { profile: Profile }) {
                         ))}
                       </ul>
                       {col.key === 'envoye' && (
-                        <button
-                          className="btn btn-primary mt-3 w-full py-4 text-xl"
-                          disabled={busy.has(t.id)}
-                          onClick={() => advance(t, 'en_preparation')}
-                        >
-                          Prendre en charge
-                        </button>
-                      )}
-                      {col.key === 'en_preparation' && (
                         <button
                           className="btn btn-success mt-3 w-full py-4 text-xl"
                           disabled={busy.has(t.id)}
