@@ -54,19 +54,19 @@ export function TicketCard({
 
   return (
     <div className={`card relative ${mine ? 'border-l-4 border-l-white' : ''} ${cancelled ? 'opacity-50' : ''}`}>
-      <Link href={`/ticket/${ticket.id}`} className={`block p-4 active:scale-[0.99] ${canServe ? 'pb-16' : ''}`}>
+      <Link href={`/ticket/${ticket.id}`} className="block p-4 active:scale-[0.99]">
         <div className={`flex flex-wrap items-center gap-2 ${canDelete ? 'pr-12' : ''}`}>
           <span className="font-bold">#{ticket.number}</span>
           {tableName && <span className="font-semibold">{tableName}</span>}
           <StatusChip status={ticket.status} />
           <span className="ml-auto text-sm font-bold">{formatPrice(itemsTotal(items))}</span>
         </div>
-        <div className="mt-1 text-xs text-muted">
+        <div className={`mt-1 text-xs text-muted ${canServe ? 'pr-24' : ''}`}>
           {waiterName && <>{waiterName} · </>}
           {formatTime(ticket.created_at)} · {formatAgo(ticket.sent_at ?? ticket.created_at, now)}
         </div>
         {items.length > 0 ? (
-          <ul className="mt-2 space-y-0.5 text-sm">
+          <ul className={`mt-2 space-y-0.5 text-sm ${canServe ? 'pr-24' : ''}`}>
             {items.map((i) => (
               <li key={i.id}>
                 <span className="font-bold">{i.quantity}×</span> {i.product_name}

@@ -235,7 +235,7 @@ export default function TicketPage() {
                     <button
                       key={p.id}
                       onClick={() => add(p)}
-                      className={`relative flex min-h-16 flex-col items-start justify-center rounded-xl border-2 border-white px-3 py-2 text-left active:scale-[0.96] ${
+                      className={`relative flex min-h-14 flex-col items-start justify-center rounded-xl border-2 border-white px-3 py-1.5 text-left active:scale-[0.96] ${
                         q ? 'bg-accent' : 'bg-surface'
                       }`}
                     >
