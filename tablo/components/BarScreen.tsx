@@ -139,7 +139,7 @@ export function BarScreen({ profile }: { profile: Profile }) {
     <div className="flex h-dvh flex-col">
       {flash > 0 && <div key={flash} className="animate-flash pointer-events-none fixed inset-0 z-40" />}
       {/* ---------- bandeau ---------- */}
-      <header className="flex items-center gap-4 border-b border-line px-4 py-2">
+      <header className="flex items-center gap-4 border-b border-line pt-[calc(env(safe-area-inset-top)+0.5rem)] pr-[max(1rem,env(safe-area-inset-right))] pb-2 pl-[max(1rem,env(safe-area-inset-left))]">
         <span className="text-2xl font-black">Bar</span>
         <div
           className={`flex items-center gap-2 rounded-full border-2 px-3 py-1 ${
@@ -173,7 +173,7 @@ export function BarScreen({ profile }: { profile: Profile }) {
       {error && <div className="bg-red-800 px-4 py-1 text-sm">Erreur : {error} — nouvel essai automatique</div>}
 
       {/* ---------- colonnes ---------- */}
-      <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 md:grid-cols-3">
+      <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden pt-3 pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] md:grid-cols-3">
         {columns.map((col) => {
           const list = byCol(col.key)
           return (

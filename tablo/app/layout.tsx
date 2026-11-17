@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Tablo',
   description: 'Prise de commande et écran bar pour la soirée',
-  appleWebApp: { capable: true, title: 'Tablo', statusBarStyle: 'black-translucent' },
+  appleWebApp: { capable: true, title: 'Tablo', statusBarStyle: 'black' },
 }
 
 export const viewport: Viewport = {
