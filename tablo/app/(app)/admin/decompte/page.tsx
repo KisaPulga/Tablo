@@ -15,6 +15,8 @@ import {
 
 export default function DecomptePage() {
   const [tab, setTab] = useState<'decompte' | 'stats'>('decompte')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
 
   const { data, error } = useLive(
     async () => {
@@ -51,8 +53,20 @@ export default function DecomptePage() {
 
   if (!data || !lk) return <Loading error={error} />
 
+  const fromTs = from ? new Date(from).getTime() : null
+  const toTs = to ? new Date(to).getTime() : null
+  // un ticket appartient à la période selon l'heure d'envoi au bar
+  const inPeriod = data.tickets.filter((t) => {
+    if (fromTs == null && toTs == null) return true
+    if (!t.sent_at) return false
+    const ts = new Date(t.sent_at).getTime()
+    return (fromTs == null || ts >= fromTs) && (toTs == null || ts <= toTs)
+  })
+  const periodLabel = from || to ? `${from ? fmtInput(from) : 'début'} → ${to ? fmtInput(to) : 'fin'}` : 'toute la base'
+
   return (
     <div className="space-y-4">
+      <PeriodBar from={from} to={to} setFrom={setFrom} setTo={setTo} />
       <div className="grid grid-cols-2 gap-2">
         <button className={`btn ${tab === 'decompte' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('decompte')}>
           Décompte
@@ -61,14 +75,18 @@ export default function DecomptePage() {
           Statistiques
         </button>
       </div>
-      {tab === 'decompte' ? <Decompte tickets={data.tickets} lk={lk} /> : <Stats data={data} lk={lk} />}
+      {tab === 'decompte' ? (
+        <Decompte tickets={inPeriod} lk={lk} periodLabel={periodLabel} />
+      ) : (
+        <Stats data={data} lk={lk} fromTs={fromTs} toTs={toTs} periodLabel={periodLabel} />
+      )}
     </div>
   )
 }
 
 /* ============================== DÉCOMPTE ============================== */
 
-function Decompte({ tickets, lk }: { tickets: TicketWithItems[]; lk: Lookup }) {
+function Decompte({ tickets, lk, periodLabel }: { tickets: TicketWithItems[]; lk: Lookup; periodLabel: string }) {
   const d = useMemo(() => computeDecompte(tickets, lk), [tickets, lk])
   const [openWaiter, setOpenWaiter] = useState<string | null>(null)
   const [openTable, setOpenTable] = useState<string | null>(null)
@@ -91,11 +109,13 @@ function Decompte({ tickets, lk }: { tickets: TicketWithItems[]; lk: Lookup }) {
           csvEuros(i.quantity * i.unit_price_cents),
           i.note ?? '',
         ])
-    downloadCsv('tablo-lignes.csv', rows)
+    downloadCsv(`tablo-lignes${fileSuffix(periodLabel)}.csv`, rows)
   }
 
   function exportSummary() {
     const rows: (string | number)[][] = [
+      ['DÉCOMPTE', `Période : ${periodLabel}`],
+      [],
       ['TOTAL GÉNÉRAL'],
       ['Tickets', 'Articles', 'CA (€)'],
       [d.total.tickets, d.total.items, csvEuros(d.total.cents)],
@@ -116,7 +136,7 @@ function Decompte({ tickets, lk }: { tickets: TicketWithItems[]; lk: Lookup }) {
       ['Table', 'Tickets', 'Articles', 'CA (€)'],
       ...d.byTable.map((t) => [t.label, t.tickets, t.items, csvEuros(t.cents)]),
     ]
-    downloadCsv('tablo-decompte.csv', rows)
+    downloadCsv(`tablo-decompte${fileSuffix(periodLabel)}.csv`, rows)
   }
 
   return (
@@ -126,7 +146,6 @@ function Decompte({ tickets, lk }: { tickets: TicketWithItems[]; lk: Lookup }) {
         <Kpi label="Tickets" value={String(d.total.tickets)} />
         <Kpi label="Articles" value={String(d.total.items)} />
       </section>
-      <p className="-mt-4 text-xs text-muted">Tickets envoyés au bar, hors brouillons et annulés. Calculé en direct depuis la base.</p>
 
       <div className="flex flex-wrap gap-2">
         <button className="btn btn-sm" onClick={exportSummary}>
@@ -253,40 +272,36 @@ function WaiterRows({
 
 /* ============================== STATISTIQUES ============================== */
 
-function toLocalInput(ts: number) {
-  const d = new Date(ts)
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
-  return d.toISOString().slice(0, 16)
-}
-
 function Stats({
   data,
   lk,
+  fromTs,
+  toTs,
+  periodLabel,
 }: {
   data: { tickets: TicketWithItems[]; profiles: Profile[] }
   lk: Lookup
+  fromTs: number | null
+  toTs: number | null
+  periodLabel: string
 }) {
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
   const [waiterId, setWaiterId] = useState('')
   const [bucket, setBucket] = useState<15 | 60>(15)
   const [metric, setMetric] = useState<'cents' | 'items'>('cents')
   const [productSort, setProductSort] = useState<'cents' | 'items'>('items')
 
   const filters: StatsFilters = {
-    from: from ? new Date(from).getTime() : null,
-    to: to ? new Date(to).getTime() : null,
+    from: fromTs,
+    to: toTs,
     waiterId,
     bucketMinutes: bucket,
   }
   const s = useMemo(
     () => computeStats(data.tickets, lk, filters),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data.tickets, lk, from, to, waiterId, bucket],
+    [data.tickets, lk, fromTs, toTs, waiterId, bucket],
   )
 
-  const sentTimes = data.tickets.map((t) => t.sent_at).filter(Boolean) as string[]
-  const firstSent = sentTimes.length ? Math.min(...sentTimes.map((x) => new Date(x).getTime())) : null
   const waiters = data.profiles.filter((p) => p.role !== 'bar')
 
   const fmtMetric = metric === 'cents' ? formatPrice : (v: number) => `${v} art.`
@@ -294,7 +309,7 @@ function Stats({
 
   function exportStats() {
     const rows: (string | number)[][] = [
-      ['STATISTIQUES', `Période : ${from || 'début'} → ${to || 'fin'}`, `Serveur : ${waiterId ? lk.waiterName(waiterId) : 'tous'}`],
+      ['STATISTIQUES', `Période : ${periodLabel}`, `Serveur : ${waiterId ? lk.waiterName(waiterId) : 'tous'}`],
       [],
       ['Indicateur', 'Valeur'],
       ['CA (€)', csvEuros(s.totalCents)],
@@ -329,27 +344,13 @@ function Stats({
       ['Serveur', 'Tickets envoyés', 'Annulés', 'Taux'],
       ...s.cancelByWaiter.map((c) => [c.name, c.sent, c.cancelled, pct(c.rate)]),
     ]
-    downloadCsv('tablo-statistiques.csv', rows)
+    downloadCsv(`tablo-statistiques${fileSuffix(periodLabel)}.csv`, rows)
   }
 
   return (
     <div className="space-y-6">
       {/* ---------- filtres ---------- */}
       <section className="card grid grid-cols-2 gap-2 p-3">
-        <label className="text-xs text-muted">
-          Depuis
-          <input
-            type="datetime-local"
-            className="input mt-1"
-            value={from}
-            placeholder={firstSent ? toLocalInput(firstSent) : ''}
-            onChange={(e) => setFrom(e.target.value)}
-          />
-        </label>
-        <label className="text-xs text-muted">
-          Jusqu&apos;à
-          <input type="datetime-local" className="input mt-1" value={to} onChange={(e) => setTo(e.target.value)} />
-        </label>
         <select className="input col-span-2" value={waiterId} onChange={(e) => setWaiterId(e.target.value)} aria-label="Serveur">
           <option value="">Tous les serveurs</option>
           {waiters.map((w) => (
@@ -359,16 +360,9 @@ function Stats({
           ))}
         </select>
         <div className="col-span-2 flex flex-wrap gap-2">
-          {(from || to || waiterId) && (
-            <button
-              className="btn btn-sm btn-ghost"
-              onClick={() => {
-                setFrom('')
-                setTo('')
-                setWaiterId('')
-              }}
-            >
-              Réinitialiser
+          {waiterId && (
+            <button className="btn btn-sm btn-ghost" onClick={() => setWaiterId('')}>
+              Tous les serveurs
             </button>
           )}
           <button className="btn btn-sm ml-auto" onClick={exportStats}>
@@ -516,6 +510,91 @@ function Stats({
         </table>
       </Section>
     </div>
+  )
+}
+
+/* ============================== PÉRIODE ============================== */
+
+/** Date → valeur d'un <input type="datetime-local"> (heure locale) */
+function toLocalInput(d: Date) {
+  const x = new Date(d)
+  x.setMinutes(x.getMinutes() - x.getTimezoneOffset())
+  return x.toISOString().slice(0, 16)
+}
+
+function fmtInput(v: string) {
+  return new Date(v).toLocaleString('fr-FR', {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function fileSuffix(periodLabel: string) {
+  if (periodLabel === 'toute la base') return ''
+  return '-' + periodLabel.normalize('NFD').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
+}
+
+/** Vendredi de l'événement : vendredi 20 novembre 2026 (mois 10 = novembre, comptés à partir de 0) */
+const EVENT_FRIDAY = new Date(2026, 10, 20)
+
+function at(base: Date, addDays: number, hour: number) {
+  return new Date(base.getFullYear(), base.getMonth(), base.getDate() + addDays, hour, 0)
+}
+
+function PeriodBar({
+  from,
+  to,
+  setFrom,
+  setTo,
+}: {
+  from: string
+  to: string
+  setFrom: (v: string) => void
+  setTo: (v: string) => void
+}) {
+  const fri = EVENT_FRIDAY
+  const presets = [
+    // vendredi : toute la journée jusqu'au samedi 4 h
+    { label: 'Vendredi', day: at(fri, 0, 0), from: toLocalInput(at(fri, 0, 0)), to: toLocalInput(at(fri, 1, 4)) },
+    // samedi : 18 h jusqu'au dimanche 4 h
+    { label: 'Samedi', day: at(fri, 1, 0), from: toLocalInput(at(fri, 1, 18)), to: toLocalInput(at(fri, 2, 4)) },
+  ]
+  const set = (f: string, t: string) => {
+    setFrom(f)
+    setTo(t)
+  }
+
+  return (
+    <section className="card space-y-2 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-bold">Période</span>
+        <button className={`btn btn-sm ${!from && !to ? 'btn-primary' : 'btn-ghost'}`} onClick={() => set('', '')}>
+          Tout
+        </button>
+        {presets.map((p) => (
+          <button
+            key={p.label}
+            className={`btn btn-sm ${from === p.from && to === p.to ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => set(p.from, p.to)}
+          >
+            {p.label} {p.day.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-xs text-muted">
+          Depuis
+          <input type="datetime-local" className="input mt-1" value={from} onChange={(e) => setFrom(e.target.value)} />
+        </label>
+        <label className="text-xs text-muted">
+          Jusqu&apos;à
+          <input type="datetime-local" className="input mt-1" value={to} onChange={(e) => setTo(e.target.value)} />
+        </label>
+      </div>
+    </section>
   )
 }
 
