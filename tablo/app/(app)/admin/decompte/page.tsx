@@ -337,9 +337,9 @@ function Stats({
       ...s.tables.map((t) => [t.label, csvEuros(t.cents), t.tickets, t.items]),
       [],
       ['TEMPS DE SERVICE (secondes)'],
-      ['Serveur', 'Envoyé → en préparation', 'Envoyé → prêt', 'Prêt → servi'],
-      ['Global', ...[s.serviceGlobal.toPrep, s.serviceGlobal.toReady, s.serviceGlobal.toServed].map((x) => (x == null ? '' : Math.round(x / 1000)))],
-      ...s.serviceByWaiter.map((w) => [w.name, ...[w.toPrep, w.toReady, w.toServed].map((x) => (x == null ? '' : Math.round(x / 1000)))]),
+      ['Serveur', 'Envoyé → prêt', 'Prêt → servi'],
+      ['Global', ...[s.serviceGlobal.toReady, s.serviceGlobal.toServed].map((x) => (x == null ? '' : Math.round(x / 1000)))],
+      ...s.serviceByWaiter.map((w) => [w.name, ...[w.toReady, w.toServed].map((x) => (x == null ? '' : Math.round(x / 1000)))]),
       [],
       ['ANNULATIONS'],
       ['Serveur', 'Tickets envoyés', 'Annulés', 'Taux'],
@@ -455,7 +455,6 @@ function Stats({
             <thead className="text-left text-xs text-muted">
               <tr>
                 <th className="py-1"></th>
-                <th className="text-right">Envoyé → prépa</th>
                 <th className="text-right">Envoyé → prêt</th>
                 <th className="text-right">Prêt → servi</th>
               </tr>
@@ -463,14 +462,12 @@ function Stats({
             <tbody>
               <tr className="border-t border-line font-bold">
                 <td className="py-1.5">Global</td>
-                <td className="text-right">{formatDuration(s.serviceGlobal.toPrep)}</td>
                 <td className="text-right">{formatDuration(s.serviceGlobal.toReady)}</td>
                 <td className="text-right">{formatDuration(s.serviceGlobal.toServed)}</td>
               </tr>
               {s.serviceByWaiter.map((w) => (
                 <tr key={w.id} className="border-t border-line">
                   <td className="py-1.5">{w.name}</td>
-                  <td className="text-right">{formatDuration(w.toPrep)}</td>
                   <td className="text-right">{formatDuration(w.toReady)}</td>
                   <td className="text-right">{formatDuration(w.toServed)}</td>
                 </tr>

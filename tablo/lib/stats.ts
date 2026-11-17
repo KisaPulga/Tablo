@@ -117,19 +117,18 @@ export function computeStats(all: TicketWithItems[], lk: Lookup, f: StatsFilters
   }
 
   // ---- temps de service ----
-  type Times = { toPrep: number[]; toReady: number[]; toServed: number[] }
+  type Times = { toReady: number[]; toServed: number[] }
   const timesOf = (ts: TicketWithItems[]): Times => ({
-    toPrep: ts.map((t) => diff(t.sent_at, t.preparing_at)).filter((x): x is number => x != null && x >= 0),
     toReady: ts.map((t) => diff(t.sent_at, t.ready_at)).filter((x): x is number => x != null && x >= 0),
     toServed: ts.map((t) => diff(t.ready_at, t.served_at)).filter((x): x is number => x != null && x >= 0),
   })
   const g = timesOf(counted)
-  const serviceGlobal = { toPrep: avg(g.toPrep), toReady: avg(g.toReady), toServed: avg(g.toServed) }
+  const serviceGlobal = { toReady: avg(g.toReady), toServed: avg(g.toServed) }
   const waiterIds = [...new Set(counted.map((t) => t.waiter_id))]
   const serviceByWaiter = waiterIds
     .map((w) => {
       const x = timesOf(counted.filter((t) => t.waiter_id === w))
-      return { id: w, name: lk.waiterName(w), toPrep: avg(x.toPrep), toReady: avg(x.toReady), toServed: avg(x.toServed) }
+      return { id: w, name: lk.waiterName(w), toReady: avg(x.toReady), toServed: avg(x.toServed) }
     })
     .sort((a, b) => a.name.localeCompare(b.name))
 

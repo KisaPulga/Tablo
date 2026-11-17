@@ -321,10 +321,9 @@ export default function TicketPage() {
       </section>
 
       {/* ---------- suivi ---------- */}
-      <section className="card grid grid-cols-2 gap-x-4 gap-y-1 p-4 text-sm sm:grid-cols-5">
+      <section className="card grid grid-cols-2 gap-x-4 gap-y-1 p-4 text-sm sm:grid-cols-4">
         <Step label="Créé" at={ticket.created_at} />
         <Step label="Envoyé" at={ticket.sent_at} />
-        <Step label="En prépa" at={ticket.preparing_at} />
         <Step label="Prêt" at={ticket.ready_at} />
         <Step label={ticket.status === 'annule' ? 'Annulé' : 'Servi'} at={ticket.status === 'annule' ? ticket.cancelled_at : ticket.served_at} />
       </section>
