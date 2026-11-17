@@ -215,6 +215,7 @@ export function BarScreen({ profile }: { profile: Profile }) {
                         {items.map((i) => (
                           <li key={i.id}>
                             <span className="font-black">{i.quantity}×</span> {i.product_name}
+                            {i.note && <div className="pl-8 text-base font-semibold text-amber-300">↳ {i.note}</div>}
                           </li>
                         ))}
                       </ul>
