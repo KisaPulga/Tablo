@@ -2,13 +2,15 @@
  * Icône de l'app (onglet, écran d'accueil iPhone/Android), dessinée en JSX pour ImageResponse.
  * Fond plein (pas de transparence : iOS remplit la transparence en noir et arrondit lui-même les coins).
  */
-export function AppIcon({ size }: { size: number }) {
+export function AppIcon({ size, rounded = false }: { size: number; rounded?: boolean }) {
   const s = (ratio: number) => Math.round(size * ratio)
   return (
     <div
       style={{
         width: '100%',
         height: '100%',
+        // onglet du navigateur : coins arrondis (le reste devient transparent)
+        borderRadius: rounded ? s(0.2) : 0,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
