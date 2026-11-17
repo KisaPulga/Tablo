@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef } from 'react'
+import { forwardRef, useEffect } from 'react'
 import type { DiningTable } from '@/lib/types'
 
 /**
@@ -9,8 +9,15 @@ import type { DiningTable } from '@/lib/types'
  */
 export const FloorPlanCanvas = forwardRef<
   HTMLDivElement,
-  { aspect: number; image: string | null; children: React.ReactNode; onPointerDown?: () => void }
->(function FloorPlanCanvas({ aspect, image, children, onPointerDown }, ref) {
+  {
+    aspect: number
+    image: string | null
+    children: React.ReactNode
+    onPointerDown?: () => void
+    /** hauteur maximale du plan (CSS), 72dvh par défaut */
+    maxHeight?: string
+  }
+>(function FloorPlanCanvas({ aspect, image, children, onPointerDown, maxHeight = '72dvh' }, ref) {
   return (
     <div
       ref={ref}
@@ -18,7 +25,7 @@ export const FloorPlanCanvas = forwardRef<
       className="relative mx-auto overflow-hidden rounded-2xl border-2 border-line bg-surface"
       style={{
         aspectRatio: String(aspect),
-        width: `min(100%, calc(72dvh * ${aspect}))`,
+        width: `min(100%, calc((${maxHeight}) * ${aspect}))`,
         containerType: 'inline-size',
       }}
     >
@@ -30,6 +37,24 @@ export const FloorPlanCanvas = forwardRef<
     </div>
   )
 })
+
+/**
+ * Supprime l'effet élastique (rebond) de la page tant que ce composant est affiché.
+ * Le défilement reste possible seulement si le contenu dépasse vraiment (ex. bandeau « Prêt »).
+ */
+export function NoPageBounce() {
+  useEffect(() => {
+    const els = [document.documentElement, document.body]
+    const prev = els.map((el) => el.style.overscrollBehavior)
+    for (const el of els) el.style.overscrollBehavior = 'none'
+    return () => els.forEach((el, i) => (el.style.overscrollBehavior = prev[i]))
+  }, [])
+  return null
+}
+
+/** Hauteur max du plan sur l'écran Tables : tout l'écran moins en-tête, titre et barre du bas */
+export const PLAN_FIT_HEIGHT =
+  '100dvh - 15rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)'
 
 /** Style de positionnement d'une table sur le plan */
 export function tableBoxStyle(

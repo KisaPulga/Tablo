@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { FloorPlanCanvas, labelStyle, tableBoxStyle } from '@/components/FloorPlan'
+import { FloorPlanCanvas, labelStyle, NoPageBounce, PLAN_FIT_HEIGHT, tableBoxStyle } from '@/components/FloorPlan'
 import { useProfile } from '@/components/ProfileContext'
 import { Loading } from '@/components/ui'
 import { formatPrice, itemsTotal } from '@/lib/format'
@@ -53,8 +53,9 @@ export default function TablesPage() {
       )}
 
       {/* ---------- plan de salle ---------- */}
+      {placed.length > 0 && <NoPageBounce />}
       {placed.length > 0 && (
-        <FloorPlanCanvas aspect={settings.aspect} image={settings.image}>
+        <FloorPlanCanvas aspect={settings.aspect} image={settings.image} maxHeight={PLAN_FIT_HEIGHT}>
           {placed.map((t) => {
             const s = stats.get(t.id)
             return (
