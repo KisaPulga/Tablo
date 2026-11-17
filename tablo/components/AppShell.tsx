@@ -40,7 +40,7 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
 
   return (
     <ProfileProvider profile={profile}>
-      <header className="sticky top-0 z-30 border-b border-line bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-line bg-background/75 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-2">
           <Link href="/" className="text-xl font-black tracking-tight">
             Tablo
@@ -60,7 +60,7 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-4 pb-28">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-background/80 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <div className="mx-auto flex max-w-3xl gap-2 px-3 py-2">
           {nav.map((n) => (
             <Link
