@@ -42,9 +42,19 @@ export function TicketCard({
     if (ok) toast.success(`Ticket #${ticket.number} supprimé`)
   }
 
+  // « Servi » directement depuis la carte (utile si le bar n'a pas passé le ticket en « Prêt »)
+  const canServe = (mine || isAdmin) && ['envoye', 'en_preparation', 'pret'].includes(ticket.status)
+
+  async function serve() {
+    const ok = await toast.attempt('Marquer servi', async () => {
+      must(await sb().from('tickets').update({ status: 'servi' }).eq('id', ticket.id).select('id').single())
+    })
+    if (ok) toast.success(`Ticket #${ticket.number} servi ✔`)
+  }
+
   return (
     <div className={`card relative ${mine ? 'border-l-4 border-l-white' : ''} ${cancelled ? 'opacity-50' : ''}`}>
-      <Link href={`/ticket/${ticket.id}`} className="block p-4 active:scale-[0.99]">
+      <Link href={`/ticket/${ticket.id}`} className={`block p-4 active:scale-[0.99] ${canServe ? 'pb-16' : ''}`}>
         <div className={`flex flex-wrap items-center gap-2 ${canDelete ? 'pr-12' : ''}`}>
           <span className="font-bold">#{ticket.number}</span>
           {tableName && <span className="font-semibold">{tableName}</span>}
@@ -67,6 +77,11 @@ export function TicketCard({
           <p className="mt-2 text-sm text-muted italic">Ticket vide</p>
         )}
       </Link>
+      {canServe && (
+        <button className="btn btn-sm btn-success absolute right-3 bottom-3" onClick={serve}>
+          ✔ Servi
+        </button>
+      )}
       {canDelete && (
         <div className="absolute top-3 right-3">
           <ConfirmButton className="btn btn-sm btn-danger min-w-11 px-2" confirmLabel="Sûr ?" onConfirm={remove}>
