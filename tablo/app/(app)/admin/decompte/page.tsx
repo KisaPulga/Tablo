@@ -558,9 +558,9 @@ function PeriodBar({
   const fri = EVENT_FRIDAY
   const presets = [
     // vendredi : toute la journée jusqu'au samedi 4 h
-    { label: 'Vendredi', day: at(fri, 0, 0), from: toLocalInput(at(fri, 0, 0)), to: toLocalInput(at(fri, 1, 4)) },
+    { label: 'Ven.', day: at(fri, 0, 0), from: toLocalInput(at(fri, 0, 0)), to: toLocalInput(at(fri, 1, 4)) },
     // samedi : 18 h jusqu'au dimanche 4 h
-    { label: 'Samedi', day: at(fri, 1, 0), from: toLocalInput(at(fri, 1, 18)), to: toLocalInput(at(fri, 2, 4)) },
+    { label: 'Sam.', day: at(fri, 1, 0), from: toLocalInput(at(fri, 1, 18)), to: toLocalInput(at(fri, 2, 4)) },
   ]
   const set = (f: string, t: string) => {
     setFrom(f)
@@ -569,29 +569,35 @@ function PeriodBar({
 
   return (
     <section className="card space-y-2 p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-bold">Période</span>
-        <button className={`btn btn-sm ${!from && !to ? 'btn-primary' : 'btn-ghost'}`} onClick={() => set('', '')}>
+      {/* toujours sur une seule ligne, même sur petit écran */}
+      <div className="flex items-center gap-1.5">
+        <span className="shrink-0 text-sm font-bold">Période</span>
+        <button
+          className={`btn btn-sm min-w-0 flex-1 px-2 whitespace-nowrap ${!from && !to ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => set('', '')}
+        >
           Tout
         </button>
         {presets.map((p) => (
           <button
             key={p.label}
-            className={`btn btn-sm ${from === p.from && to === p.to ? 'btn-primary' : 'btn-ghost'}`}
+            className={`btn btn-sm min-w-0 flex-[1.6] px-2 whitespace-nowrap ${
+              from === p.from && to === p.to ? 'btn-primary' : 'btn-ghost'
+            }`}
             onClick={() => set(p.from, p.to)}
           >
             {p.label} {p.day.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
           </button>
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <label className="text-xs text-muted">
-          Depuis
-          <input type="datetime-local" className="input mt-1" value={from} onChange={(e) => setFrom(e.target.value)} />
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <label className="flex min-w-0 items-center gap-2 text-xs text-muted">
+          <span className="w-14 shrink-0">Depuis</span>
+          <input type="datetime-local" className="input input-date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </label>
-        <label className="text-xs text-muted">
-          Jusqu&apos;à
-          <input type="datetime-local" className="input mt-1" value={to} onChange={(e) => setTo(e.target.value)} />
+        <label className="flex min-w-0 items-center gap-2 text-xs text-muted">
+          <span className="w-14 shrink-0">Jusqu&apos;à</span>
+          <input type="datetime-local" className="input input-date" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
       </div>
     </section>

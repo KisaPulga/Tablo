@@ -63,6 +63,15 @@ body {
       placeholder:text-muted focus:border-white focus:outline-none;
   }
 
+  /* Champs date/heure : Safari iOS leur impose une largeur minimale et une hauteur variable */
+  .input-date {
+    @apply h-11 min-w-0 flex-1 appearance-none text-left;
+  }
+  .input-date::-webkit-date-and-time-value {
+    text-align: left;
+    min-height: 1.5em;
+  }
+
   .chip {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold whitespace-nowrap;
   }
