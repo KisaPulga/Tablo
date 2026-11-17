@@ -26,8 +26,10 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="fixed inset-0 flex touch-none justify-center overflow-hidden overscroll-none px-4 pt-[12dvh] pb-8">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
+    // espace au-dessus (1 part) / en dessous (2 parts) : le milieu du formulaire tombe au tiers supérieur
+    <main className="fixed inset-0 flex touch-none flex-col items-center overflow-hidden overscroll-none px-4 py-6">
+      <div className="flex-1" />
+      <form onSubmit={handleSubmit} className="w-full max-w-sm shrink-0 space-y-4">
         <div className="text-center">
           <h1 className="text-4xl font-black tracking-tight">Tablo</h1>
           <p className="text-muted">Connexion réservée aux invités</p>
@@ -56,6 +58,7 @@ export default function LoginPage() {
           {loading ? 'Connexion…' : 'Se connecter'}
         </button>
       </form>
+      <div className="flex-[2]" />
     </main>
   )
 }
