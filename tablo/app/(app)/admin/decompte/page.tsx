@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { BarList, TimeChart } from '@/components/Charts'
+import { useToast } from '@/components/Toaster'
 import { Loading } from '@/components/ui'
 import { csvEuros, downloadCsv, formatDuration, formatPrice, formatTime, itemsCount, itemsTotal } from '@/lib/format'
 import { fetchAll, must, sb, useLive } from '@/lib/live'
@@ -509,7 +510,72 @@ function Stats({
           </tbody>
         </table>
       </Section>
+
+      <DeleteAllTickets />
     </div>
+  )
+}
+
+/* ============================== SUPPRESSION ============================== */
+
+/** Supprime TOUS les tickets (et leurs lignes, en cascade), après une grosse confirmation */
+function DeleteAllTickets() {
+  const toast = useToast()
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  async function confirmDelete() {
+    setBusy(true)
+    const ok = await toast.attempt('Suppression des tickets', async () => {
+      // Supabase exige un filtre sur un delete : celui-ci correspond à toutes les lignes
+      must(await sb().from('tickets').delete().not('id', 'is', null))
+    })
+    setBusy(false)
+    if (ok) {
+      setOpen(false)
+      toast.success('Tous les tickets ont été supprimés')
+    }
+  }
+
+  return (
+    <>
+      <div className="pt-6">
+        <button className="btn btn-danger w-full py-4 text-lg" onClick={() => setOpen(true)}>
+          Supprimer les tickets
+        </button>
+      </div>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-all-title"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
+        >
+          <div className="w-full max-w-md space-y-5 rounded-3xl border-4 border-red-500 bg-background p-6 text-center shadow-2xl">
+            <div className="text-6xl">⚠️</div>
+            <h2 id="delete-all-title" className="text-3xl font-black text-red-300">
+              Supprimer tous les tickets ?
+            </h2>
+            <p className="text-lg">
+              <b>Tous les tickets de toutes les soirées</b> seront effacés définitivement, avec leur contenu. Le décompte
+              et les statistiques repartiront à zéro.
+            </p>
+            <p className="text-sm text-muted">
+              Cette action est irréversible. Pense à exporter les CSV avant si tu veux garder une trace.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button className="btn btn-danger w-full py-4 text-lg" disabled={busy} onClick={confirmDelete}>
+                {busy ? 'Suppression…' : 'Oui, tout supprimer'}
+              </button>
+              <button className="btn w-full py-3" disabled={busy} onClick={() => setOpen(false)}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

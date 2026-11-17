@@ -25,13 +25,19 @@ export function TicketCard({
   const items = [...ticket.ticket_items].sort((a, b) => a.position - b.position)
   const cancelled = ticket.status === 'annule'
 
-  // « Supprimer » = annuler : le ticket est gardé en base (traçabilité) mais sort du décompte
-  const canDelete =
-    (mine && ticket.status !== 'servi' && ticket.status !== 'annule') || (me.role === 'admin' && ticket.status !== 'annule')
+  const isAdmin = me.role === 'admin'
+  // admin : poubelle sur tous les tickets (même annulés) = suppression définitive
+  // serveur : poubelle sur ses tickets non servis = annulation (gardé en base, sort du décompte)
+  const canDelete = isAdmin || (mine && ticket.status !== 'servi' && ticket.status !== 'annule')
 
   async function remove() {
     const ok = await toast.attempt('Suppression du ticket', async () => {
-      must(await sb().from('tickets').update({ status: 'annule' }).eq('id', ticket.id).select('id').single())
+      if (isAdmin) {
+        // les lignes du ticket sont supprimées en cascade
+        must(await sb().from('tickets').delete().eq('id', ticket.id).select('id').single())
+      } else {
+        must(await sb().from('tickets').update({ status: 'annule' }).eq('id', ticket.id).select('id').single())
+      }
     })
     if (ok) toast.success(`Ticket #${ticket.number} supprimé`)
   }
