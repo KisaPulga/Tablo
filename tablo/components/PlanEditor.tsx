@@ -1,14 +1,22 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { FloorPlanCanvas, tableBoxStyle } from '@/components/FloorPlan'
+import { FloorPlanCanvas, labelStyle, tableBoxStyle } from '@/components/FloorPlan'
 import { useToast } from '@/components/Toaster'
 import { ConfirmButton } from '@/components/ui'
 import { must, sb } from '@/lib/live'
 import { clamp, compressImage, isPlaced, saveSetting, usePlanSettings } from '@/lib/plan'
 import type { DiningTable } from '@/lib/types'
 
-type Geo = Pick<DiningTable, 'pos_x' | 'pos_y' | 'width' | 'height' | 'shape'>
+type Geo = Pick<DiningTable, 'pos_x' | 'pos_y' | 'width' | 'height' | 'shape' | 'rotation'>
+
+/** Angle ramené entre 0 et 359, arrondi à 5° (aimanté sur 0/45/90… à ±4°) */
+function normAngle(a: number) {
+  let r = ((Math.round(a / 5) * 5) % 360 + 360) % 360
+  const snap = Math.round(r / 45) * 45
+  if (Math.abs(r - snap) <= 4) r = snap % 360
+  return r
+}
 
 const MIN_SIZE = 4 // %
 
@@ -55,8 +63,8 @@ export function PlanEditor({ tables, reload }: { tables: DiningTable[]; reload: 
     }
   }
 
-  /** Glisser une table (mode move) ou sa poignée (mode resize) */
-  function startDrag(e: React.PointerEvent, t: DiningTable, mode: 'move' | 'resize') {
+  /** Glisser une table (move), sa poignée de taille (resize) ou de rotation (rotate) */
+  function startDrag(e: React.PointerEvent, t: DiningTable, mode: 'move' | 'resize' | 'rotate') {
     e.preventDefault()
     e.stopPropagation()
     const rect = canvasRef.current?.getBoundingClientRect()
@@ -65,23 +73,34 @@ export function PlanEditor({ tables, reload }: { tables: DiningTable[]; reload: 
     const start = geo(t)
     const sx = e.clientX
     const sy = e.clientY
+    // centre de la table à l'écran (pour la rotation)
+    const cx = rect.left + (((start.pos_x ?? 0) + start.width / 2) / 100) * rect.width
+    const cy = rect.top + (((start.pos_y ?? 0) + start.height / 2) / 100) * rect.height
+    const rad = ((start.rotation ?? 0) * Math.PI) / 180
     let latest: Partial<Geo> = {}
     let moved = false
 
     const onMove = (ev: PointerEvent) => {
-      const dx = ((ev.clientX - sx) / rect.width) * 100
-      const dy = ((ev.clientY - sy) / rect.height) * 100
-      if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) > 3) moved = true
+      const pxX = ev.clientX - sx
+      const pxY = ev.clientY - sy
+      if (Math.abs(pxX) + Math.abs(pxY) > 3) moved = true
       if (mode === 'move') {
         latest = {
-          pos_x: clamp((start.pos_x ?? 0) + dx, 0, 100 - start.width),
-          pos_y: clamp((start.pos_y ?? 0) + dy, 0, 100 - start.height),
+          pos_x: clamp((start.pos_x ?? 0) + (pxX / rect.width) * 100, 0, 100 - start.width),
+          pos_y: clamp((start.pos_y ?? 0) + (pxY / rect.height) * 100, 0, 100 - start.height),
+        }
+      } else if (mode === 'resize') {
+        // déplacement exprimé dans le repère (tourné) de la table
+        const lx = pxX * Math.cos(rad) + pxY * Math.sin(rad)
+        const ly = -pxX * Math.sin(rad) + pxY * Math.cos(rad)
+        latest = {
+          width: clamp(start.width + (lx / rect.width) * 100, MIN_SIZE, 100 - (start.pos_x ?? 0)),
+          height: clamp(start.height + (ly / rect.height) * 100, MIN_SIZE, 100 - (start.pos_y ?? 0)),
         }
       } else {
-        latest = {
-          width: clamp(start.width + dx, MIN_SIZE, 100 - (start.pos_x ?? 0)),
-          height: clamp(start.height + dy, MIN_SIZE, 100 - (start.pos_y ?? 0)),
-        }
+        // la poignée est au-dessus de la table : angle 0 = doigt pile au-dessus du centre
+        const deg = (Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180) / Math.PI + 90
+        latest = { rotation: normAngle(deg) }
       }
       setOverrides((o) => ({ ...o, [t.id]: { ...o[t.id], ...latest } }))
     }
@@ -184,7 +203,22 @@ export function PlanEditor({ tables, reload }: { tables: DiningTable[]; reload: 
               } ${isSel ? 'z-10 border-white ring-4 ring-white/40' : 'border-white/80'}`}
               style={{ ...tableBoxStyle(t), cursor: 'grab' }}
             >
-              <span className="pointer-events-none overflow-hidden">{t.name}</span>
+              <span className="pointer-events-none overflow-hidden" style={labelStyle(t.rotation)}>
+                {t.name}
+              </span>
+              {isSel && (
+                <>
+                  <span aria-hidden className="pointer-events-none absolute -top-6 left-1/2 h-6 w-0.5 -translate-x-1/2 bg-white" />
+                  <span
+                    onPointerDown={(e) => startDrag(e, t, 'rotate')}
+                    aria-label="Tourner"
+                    className="absolute -top-10 left-1/2 flex h-7 w-7 -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 border-background bg-white text-sm text-background"
+                    style={{ cursor: 'grab' }}
+                  >
+                    ⟳
+                  </span>
+                </>
+              )}
               {isSel && (
                 <span
                   onPointerDown={(e) => startDrag(e, t, 'resize')}
@@ -217,6 +251,22 @@ export function PlanEditor({ tables, reload }: { tables: DiningTable[]; reload: 
             <button className="btn btn-sm h-9 w-9 p-0" onClick={() => nudgeSize(1)} aria-label="Plus grande">
               +
             </button>
+            <span className="mx-1 h-6 w-px bg-line" />
+            <button
+              className="btn btn-sm h-9 w-9 p-0"
+              onClick={() => persist(sel.id, { rotation: normAngle((selGeo.rotation ?? 0) - 15) })}
+              aria-label="Tourner à gauche"
+            >
+              ↺
+            </button>
+            <span className="w-10 text-center text-sm text-muted tabular-nums">{Math.round(selGeo.rotation ?? 0)}°</span>
+            <button
+              className="btn btn-sm h-9 w-9 p-0"
+              onClick={() => persist(sel.id, { rotation: normAngle((selGeo.rotation ?? 0) + 15) })}
+              aria-label="Tourner à droite"
+            >
+              ↻
+            </button>
             <button
               className="btn btn-sm btn-ghost"
               onClick={() => persist(sel.id, { shape: selGeo.shape === 'round' ? 'rect' : 'round' })}
@@ -230,7 +280,8 @@ export function PlanEditor({ tables, reload }: { tables: DiningTable[]; reload: 
         </div>
       ) : (
         <p className="text-xs text-muted">
-          Glisse une table pour la déplacer. Touche-la pour la sélectionner, puis tire la poignée ⤡ pour changer sa taille.
+          Glisse une table pour la déplacer. Touche-la pour la sélectionner : la poignée ⤡ change sa taille, la poignée ⟳ la
+          fait tourner.
         </p>
       )}
 

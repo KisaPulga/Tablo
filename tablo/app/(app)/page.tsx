@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { FloorPlanCanvas, tableBoxStyle } from '@/components/FloorPlan'
+import { FloorPlanCanvas, labelStyle, tableBoxStyle } from '@/components/FloorPlan'
 import { useProfile } from '@/components/ProfileContext'
 import { Loading } from '@/components/ui'
 import { formatPrice, itemsTotal } from '@/lib/format'
@@ -44,7 +44,6 @@ export default function TablesPage() {
   }
 
   const placed = data.tables.filter(isPlaced)
-  const unplaced = data.tables.filter((t) => !isPlaced(t))
 
   return (
     <div className="space-y-4">
@@ -67,8 +66,10 @@ export default function TablesPage() {
                 } ${s?.open ? 'bg-accent' : 'bg-surface-2/90'}`}
                 style={tableBoxStyle(t)}
               >
-                <span className="overflow-hidden font-bold break-words">{t.name}</span>
-                {!!s?.total && <span className="text-[0.8em] text-white/80">{formatPrice(s.total)}</span>}
+                <span className="flex flex-col items-center overflow-hidden" style={labelStyle(t.rotation)}>
+                  <span className="font-bold break-words">{t.name}</span>
+                  {!!s?.total && <span className="text-[0.8em] text-white/80">{formatPrice(s.total)}</span>}
+                </span>
                 {!!s?.open && (
                   <span className="absolute -top-2 -right-2 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-amber-400 px-1 text-xs font-black text-amber-950">
                     {s.open}
@@ -89,16 +90,13 @@ export default function TablesPage() {
         </p>
       )}
 
-      {/* ---------- tables hors plan (ou toutes si pas de plan) ---------- */}
-      {unplaced.length > 0 && (
-        <section className="space-y-2">
-          {placed.length > 0 && <h2 className="text-sm font-bold tracking-wide text-muted uppercase">Autres tables</h2>}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {unplaced.map((t) => (
-              <TableTile key={t.id} table={t} stat={stats.get(t.id)} />
-            ))}
-          </div>
-        </section>
+      {/* ---------- secours : aucune table placée → grille de tuiles ---------- */}
+      {placed.length === 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {data.tables.map((t) => (
+            <TableTile key={t.id} table={t} stat={stats.get(t.id)} />
+          ))}
+        </div>
       )}
     </div>
   )

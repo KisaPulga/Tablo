@@ -20,6 +20,8 @@ export type DiningTable = {
   width: number
   height: number
   shape: 'rect' | 'round'
+  /** rotation en degrés (0–359), autour du centre de la table */
+  rotation: number
 }
 
 export type Category = {
