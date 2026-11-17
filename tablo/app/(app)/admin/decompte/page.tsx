@@ -146,7 +146,6 @@ function Decompte({ tickets, lk, periodLabel }: { tickets: TicketWithItems[]; lk
         <Kpi label="Tickets" value={String(d.total.tickets)} />
         <Kpi label="Articles" value={String(d.total.items)} />
       </section>
-      <p className="-mt-4 text-xs text-muted">Tickets envoyés au bar, hors brouillons et annulés. Calculé en direct depuis la base.</p>
 
       <div className="flex flex-wrap gap-2">
         <button className="btn btn-sm" onClick={exportSummary}>
@@ -595,10 +594,6 @@ function PeriodBar({
           <input type="datetime-local" className="input mt-1" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
       </div>
-      <p className="text-xs text-muted">
-        Vendredi = vendredi 0 h → samedi 4 h · Samedi = samedi 18 h → dimanche 4 h. Un ticket compte selon son heure
-        d&apos;envoi au bar.
-      </p>
     </section>
   )
 }

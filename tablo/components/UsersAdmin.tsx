@@ -65,11 +65,6 @@ export function UsersAdmin({ users, meId, configError }: { users: UserRow[]; meI
             Inviter par email
           </button>
         </div>
-        <p className="text-xs text-muted">
-          {mode === 'password'
-            ? 'Le plus fiable : tu choisis un mot de passe et tu le donnes à la personne.'
-            : 'La personne reçoit un email et choisit son mot de passe. (L’envoi d’emails Supabase gratuit est limité à quelques-uns par heure.)'}
-        </p>
         <input
           className="input"
           placeholder="Nom affiché (ex. Léa)"
