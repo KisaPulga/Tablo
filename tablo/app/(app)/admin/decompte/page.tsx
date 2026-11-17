@@ -66,7 +66,7 @@ export default function DecomptePage() {
 
   return (
     <div className="space-y-4">
-      <PeriodBar tickets={data.tickets} from={from} to={to} setFrom={setFrom} setTo={setTo} />
+      <PeriodBar from={from} to={to} setFrom={setFrom} setTo={setTo} />
       <div className="grid grid-cols-2 gap-2">
         <button className={`btn ${tab === 'decompte' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('decompte')}>
           Décompte
@@ -538,37 +538,25 @@ function fileSuffix(periodLabel: string) {
   return '-' + periodLabel.normalize('NFD').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
 }
 
-/**
- * Vendredi de l'événement : le vendredi le plus récent avant le dernier ticket envoyé
- * (moins 4 h, pour qu'un ticket de 3 h du matin compte pour la veille). Sans ticket : à partir d'aujourd'hui.
- */
-function eventFriday(tickets: TicketWithItems[]) {
-  const sent = tickets.map((t) => (t.sent_at ? new Date(t.sent_at).getTime() : 0))
-  const ref = new Date((sent.length ? Math.max(...sent) : 0) || Date.now())
-  ref.setHours(ref.getHours() - 4)
-  const d = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate())
-  d.setDate(d.getDate() - ((d.getDay() - 5 + 7) % 7)) // recule jusqu'au vendredi (getDay : 5 = vendredi)
-  return d
-}
+/** Vendredi de l'événement : vendredi 20 novembre 2026 (mois 10 = novembre, comptés à partir de 0) */
+const EVENT_FRIDAY = new Date(2026, 10, 20)
 
 function at(base: Date, addDays: number, hour: number) {
   return new Date(base.getFullYear(), base.getMonth(), base.getDate() + addDays, hour, 0)
 }
 
 function PeriodBar({
-  tickets,
   from,
   to,
   setFrom,
   setTo,
 }: {
-  tickets: TicketWithItems[]
   from: string
   to: string
   setFrom: (v: string) => void
   setTo: (v: string) => void
 }) {
-  const fri = eventFriday(tickets)
+  const fri = EVENT_FRIDAY
   const presets = [
     // vendredi : toute la journée jusqu'au samedi 4 h
     { label: 'Vendredi', day: at(fri, 0, 0), from: toLocalInput(at(fri, 0, 0)), to: toLocalInput(at(fri, 1, 4)) },
