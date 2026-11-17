@@ -33,8 +33,8 @@ export function TicketCard({
   async function remove() {
     const ok = await toast.attempt('Suppression du ticket', async () => {
       if (isAdmin) {
-        // les lignes du ticket sont supprimées en cascade
-        must(await sb().from('tickets').delete().eq('id', ticket.id).select('id').single())
+        // fonction SQL réservée à l'admin (les lignes du ticket sont supprimées en cascade)
+        must(await sb().rpc('delete_ticket', { p_ticket_id: ticket.id }))
       } else {
         must(await sb().from('tickets').update({ status: 'annule' }).eq('id', ticket.id).select('id').single())
       }

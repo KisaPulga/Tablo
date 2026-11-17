@@ -526,14 +526,15 @@ function DeleteAllTickets() {
 
   async function confirmDelete() {
     setBusy(true)
+    let count = 0
     const ok = await toast.attempt('Suppression des tickets', async () => {
-      // Supabase exige un filtre sur un delete : celui-ci correspond à toutes les lignes
-      must(await sb().from('tickets').delete().not('id', 'is', null))
+      // fonction SQL réservée à l'admin ; renvoie le nombre de tickets supprimés
+      count = (must(await sb().rpc('delete_all_tickets')) as number) ?? 0
     })
     setBusy(false)
     if (ok) {
       setOpen(false)
-      toast.success('Tous les tickets ont été supprimés')
+      toast.success(`${count} ticket${count > 1 ? 's' : ''} supprimé${count > 1 ? 's' : ''}`)
     }
   }
 
