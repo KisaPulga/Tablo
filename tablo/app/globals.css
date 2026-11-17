@@ -38,10 +38,8 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background:
-    radial-gradient(ellipse 90% 55% at 15% 0%, rgba(47, 111, 237, 0.16), transparent 70%),
-    radial-gradient(ellipse 70% 50% at 100% 100%, rgba(80, 60, 200, 0.12), transparent 70%),
-    linear-gradient(180deg, #0a1a38 0%, var(--background) 55%, #050e20 100%);
+  /* diagonale : bleu un peu plus clair en haut à gauche → bleu nuit profond en bas à droite */
+  background: linear-gradient(135deg, #10285a 0%, #0b1d40 40%, var(--background) 70%, #040b1a 100%);
 }
 
 @layer components {
