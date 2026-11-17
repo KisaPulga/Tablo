@@ -11,7 +11,6 @@ import type { DiningTable } from '@/lib/types'
 export default function AdminTablesPage() {
   const toast = useToast()
   const [newName, setNewName] = useState('')
-  const [count, setCount] = useState('10')
   const [tab, setTab] = useState<'list' | 'plan'>('list')
 
   const { data, error, reload } = useLive(
@@ -61,24 +60,6 @@ export default function AdminTablesPage() {
     reload()
   }
 
-  async function addMany(e: React.FormEvent) {
-    e.preventDefault()
-    const n = Math.min(50, Math.max(1, Number(count) || 0))
-    // continue la numérotation après la plus grande « Table N » existante
-    const nums = data!.map((t) => Number(/^Table (\d+)$/.exec(t.name)?.[1] ?? 0))
-    const start = Math.max(0, ...nums) + 1
-    const sort = data!.length ? Math.max(...data!.map((t) => t.sort_order)) + 10 : 0
-    const ok = await toast.attempt('Ajout des tables', async () => {
-      const rows = Array.from({ length: n }, (_, k) => ({
-        name: `Table ${start + k}`,
-        sort_order: sort + k * 10,
-      }))
-      must(await sb().from('tables').insert(rows).select('id'))
-    })
-    if (ok) toast.success(`${n} table${n > 1 ? 's' : ''} ajoutée${n > 1 ? 's' : ''} — place-les dans l'onglet Plan`)
-    reload()
-  }
-
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Tables</h1>
@@ -96,25 +77,10 @@ export default function AdminTablesPage() {
         <PlanEditor tables={data} reload={reload} />
       ) : (
         <>
-          <form onSubmit={addMany} className="card flex items-center gap-2 p-3">
-            <span className="font-semibold">Ajouter</span>
-            <input
-              className="input w-20 text-center"
-              inputMode="numeric"
-              value={count}
-              onChange={(e) => setCount(e.target.value.replace(/\D/g, ''))}
-              aria-label="Nombre de tables"
-            />
-            <span className="flex-1 font-semibold">tables</span>
-            <button className="btn btn-primary shrink-0" disabled={!Number(count)}>
-              OK
-            </button>
-          </form>
-
           <form onSubmit={add} className="flex gap-2">
             <input
               className="input"
-              placeholder="Ou une table nommée (ex. Terrasse 3)"
+              placeholder="Nom de la table (ex. Terrasse 3)"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
             />
