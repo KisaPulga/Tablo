@@ -60,7 +60,6 @@ export function TicketCard({
             {items.map((i) => (
               <li key={i.id}>
                 <span className="font-bold">{i.quantity}×</span> {i.product_name}
-                {i.note && <span className="text-amber-300"> — {i.note}</span>}
               </li>
             ))}
           </ul>

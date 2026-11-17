@@ -15,7 +15,6 @@ type Line = {
   product_name: string
   unit_price_cents: number
   quantity: number
-  note: string
 }
 
 function linesFromTicket(t: TicketWithItems): Line[] {
@@ -27,7 +26,6 @@ function linesFromTicket(t: TicketWithItems): Line[] {
       product_name: i.product_name,
       unit_price_cents: i.unit_price_cents,
       quantity: i.quantity,
-      note: i.note ?? '',
     }))
 }
 
@@ -63,7 +61,6 @@ export default function TicketPage() {
   const [lines, setLines] = useState<Line[]>([])
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [openNote, setOpenNote] = useState<string | null>(null)
   const linesRef = useRef(lines)
   const dirtyRef = useRef(dirty)
   useEffect(() => {
@@ -93,7 +90,7 @@ export default function TicketPage() {
   const save = useCallback(
     async (send: boolean) => {
       setSaving(true)
-      const payload = linesRef.current.map((l) => ({ product_id: l.product_id, quantity: l.quantity, note: l.note }))
+      const payload = linesRef.current.map((l) => ({ product_id: l.product_id, quantity: l.quantity }))
       const savedLines = linesRef.current
       const ok = await toast.attempt(send ? 'Envoi au bar' : 'Enregistrement', async () => {
         must(await sb().rpc('save_ticket', { p_ticket_id: id, p_note: null, p_items: payload, p_send: send }))
@@ -122,7 +119,7 @@ export default function TicketPage() {
   useEffect(() => {
     return () => {
       if (dirtyRef.current && isDraft) {
-        const payload = linesRef.current.map((l) => ({ product_id: l.product_id, quantity: l.quantity, note: l.note }))
+        const payload = linesRef.current.map((l) => ({ product_id: l.product_id, quantity: l.quantity }))
         void sb().rpc('save_ticket', { p_ticket_id: id, p_note: null, p_items: payload, p_send: false })
       }
     }
@@ -143,16 +140,13 @@ export default function TicketPage() {
     change((ls) => {
       const i = ls.findIndex((l) => l.product_id === p.id)
       if (i >= 0) return ls.map((l, j) => (j === i ? { ...l, quantity: l.quantity + 1 } : l))
-      return [...ls, { product_id: p.id, product_name: p.name, unit_price_cents: p.price_cents, quantity: 1, note: '' }]
+      return [...ls, { product_id: p.id, product_name: p.name, unit_price_cents: p.price_cents, quantity: 1 }]
     })
   }
   function setQty(pid: string, delta: number) {
     change((ls) =>
       ls.map((l) => (l.product_id === pid ? { ...l, quantity: l.quantity + delta } : l)).filter((l) => l.quantity > 0),
     )
-  }
-  function setLineNote(pid: string, value: string) {
-    change((ls) => ls.map((l) => (l.product_id === pid ? { ...l, note: value } : l)))
   }
 
   async function setStatus(status: 'servi' | 'annule', label: string) {
@@ -252,13 +246,6 @@ export default function TicketPage() {
               </div>
               {editable ? (
                 <>
-                  <button
-                    className="btn btn-sm btn-ghost"
-                    aria-label="Note"
-                    onClick={() => setOpenNote(openNote === l.product_id ? null : l.product_id)}
-                  >
-                    📝
-                  </button>
                   <button className="btn h-11 w-11 p-0 text-xl" onClick={() => setQty(l.product_id, -1)} aria-label="Retirer">
                     −
                   </button>
@@ -271,17 +258,6 @@ export default function TicketPage() {
                 <span className="text-lg font-bold">×{l.quantity}</span>
               )}
             </div>
-            {editable && openNote === l.product_id ? (
-              <input
-                className="input mt-2"
-                autoFocus
-                placeholder="Note (ex. sans glaçons)"
-                value={l.note}
-                onChange={(e) => setLineNote(l.product_id, e.target.value)}
-              />
-            ) : (
-              l.note && <div className="mt-1 text-sm text-amber-300">— {l.note}</div>
-            )}
           </div>
         ))}
         <div className="flex items-center justify-between px-4 py-3 text-xl font-bold">
