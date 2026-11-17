@@ -13,6 +13,13 @@ export type DiningTable = {
   name: string
   sort_order: number
   is_active: boolean
+  /** position sur le plan en % (coin haut-gauche) ; null = pas placée */
+  pos_x: number | null
+  pos_y: number | null
+  /** taille en % de la largeur / hauteur du plan */
+  width: number
+  height: number
+  shape: 'rect' | 'round'
 }
 
 export type Category = {

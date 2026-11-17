@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useToast } from '@/components/Toaster'
+import { PlanEditor } from '@/components/PlanEditor'
 import { ConfirmButton, Loading } from '@/components/ui'
 import { must, sb, useLive } from '@/lib/live'
 import { moveRow } from '@/lib/reorder'
@@ -10,6 +11,8 @@ import type { DiningTable } from '@/lib/types'
 export default function AdminTablesPage() {
   const toast = useToast()
   const [newName, setNewName] = useState('')
+  const [count, setCount] = useState('10')
+  const [tab, setTab] = useState<'list' | 'plan'>('list')
 
   const { data, error, reload } = useLive(
     async () =>
@@ -58,15 +61,21 @@ export default function AdminTablesPage() {
     reload()
   }
 
-  async function addMany() {
-    const start = data!.length + 1
-    await toast.attempt('Ajout des tables', async () => {
-      const rows = Array.from({ length: 10 }, (_, k) => ({
+  async function addMany(e: React.FormEvent) {
+    e.preventDefault()
+    const n = Math.min(50, Math.max(1, Number(count) || 0))
+    // continue la numérotation après la plus grande « Table N » existante
+    const nums = data!.map((t) => Number(/^Table (\d+)$/.exec(t.name)?.[1] ?? 0))
+    const start = Math.max(0, ...nums) + 1
+    const sort = data!.length ? Math.max(...data!.map((t) => t.sort_order)) + 10 : 0
+    const ok = await toast.attempt('Ajout des tables', async () => {
+      const rows = Array.from({ length: n }, (_, k) => ({
         name: `Table ${start + k}`,
-        sort_order: (data!.length + k) * 10,
+        sort_order: sort + k * 10,
       }))
       must(await sb().from('tables').insert(rows).select('id'))
     })
+    if (ok) toast.success(`${n} table${n > 1 ? 's' : ''} ajoutée${n > 1 ? 's' : ''} — place-les dans l'onglet Plan`)
     reload()
   }
 
@@ -74,51 +83,86 @@ export default function AdminTablesPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Tables</h1>
 
-      <form onSubmit={add} className="flex gap-2">
-        <input className="input" placeholder="Nom (ex. Terrasse 3)" value={newName} onChange={(e) => setNewName(e.target.value)} />
-        <button className="btn btn-primary shrink-0" disabled={!newName.trim()}>
-          Ajouter
+      <div className="grid grid-cols-2 gap-2">
+        <button className={`btn ${tab === 'list' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('list')}>
+          Liste ({data.length})
         </button>
-      </form>
-      {data.length === 0 && (
-        <button className="btn w-full" onClick={addMany}>
-          Créer « Table 1 » à « Table 10 »
+        <button className={`btn ${tab === 'plan' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('plan')}>
+          Plan de salle
         </button>
-      )}
+      </div>
 
-      <ul className="space-y-2">
-        {data.map((t, i) => (
-          <li key={t.id} className="card flex items-center gap-2 p-2">
-            <div className="flex flex-col">
-              <button className="btn btn-sm btn-ghost px-2" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Monter">
-                ▲
-              </button>
-              <button
-                className="btn btn-sm btn-ghost mt-1 px-2"
-                disabled={i === data.length - 1}
-                onClick={() => move(i, 1)}
-                aria-label="Descendre"
-              >
-                ▼
-              </button>
-            </div>
+      {tab === 'plan' ? (
+        <PlanEditor tables={data} reload={reload} />
+      ) : (
+        <>
+          <form onSubmit={addMany} className="card flex items-center gap-2 p-3">
+            <span className="font-semibold">Ajouter</span>
             <input
-              key={t.name}
-              className="input flex-1 font-semibold"
-              defaultValue={t.name}
-              onBlur={(e) => rename(t, e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-              aria-label="Nom de la table"
+              className="input w-20 text-center"
+              inputMode="numeric"
+              value={count}
+              onChange={(e) => setCount(e.target.value.replace(/\D/g, ''))}
+              aria-label="Nombre de tables"
             />
-            <ConfirmButton className="btn btn-sm btn-danger" onConfirm={() => remove(t)}>
-              Suppr.
-            </ConfirmButton>
-          </li>
-        ))}
-      </ul>
-      <p className="text-xs text-muted">
-        Une table qui a déjà des tickets est masquée plutôt que supprimée, pour garder le décompte juste.
-      </p>
+            <span className="flex-1 font-semibold">tables</span>
+            <button className="btn btn-primary shrink-0" disabled={!Number(count)}>
+              OK
+            </button>
+          </form>
+
+          <form onSubmit={add} className="flex gap-2">
+            <input
+              className="input"
+              placeholder="Ou une table nommée (ex. Terrasse 3)"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+            />
+            <button className="btn btn-primary shrink-0" disabled={!newName.trim()}>
+              Ajouter
+            </button>
+          </form>
+
+          <ul className="space-y-2">
+            {data.map((t, i) => (
+              <li key={t.id} className="card flex items-center gap-2 p-2">
+                <div className="flex flex-col">
+                  <button
+                    className="btn btn-sm btn-ghost px-2"
+                    disabled={i === 0}
+                    onClick={() => move(i, -1)}
+                    aria-label="Monter"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    className="btn btn-sm btn-ghost mt-1 px-2"
+                    disabled={i === data.length - 1}
+                    onClick={() => move(i, 1)}
+                    aria-label="Descendre"
+                  >
+                    ▼
+                  </button>
+                </div>
+                <input
+                  key={t.name}
+                  className="input flex-1 font-semibold"
+                  defaultValue={t.name}
+                  onBlur={(e) => rename(t, e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                  aria-label="Nom de la table"
+                />
+                <ConfirmButton className="btn btn-sm btn-danger" onConfirm={() => remove(t)}>
+                  Suppr.
+                </ConfirmButton>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted">
+            Une table qui a déjà des tickets est masquée plutôt que supprimée, pour garder le décompte juste.
+          </p>
+        </>
+      )}
     </div>
   )
 }
