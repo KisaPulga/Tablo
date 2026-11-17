@@ -8,9 +8,7 @@ import { fetchAll, must, sb, useLive } from '@/lib/live'
 import { computeDecompte, computeStats, type Lookup, type StatsFilters } from '@/lib/stats'
 import {
   STATUS_LABEL,
-  type Category,
   type DiningTable,
-  type Product,
   type Profile,
   type TicketWithItems,
 } from '@/lib/types'
@@ -20,7 +18,7 @@ export default function DecomptePage() {
 
   const { data, error } = useLive(
     async () => {
-      const [tickets, profiles, tables, products, categories] = await Promise.all([
+      const [tickets, profiles, tables] = await Promise.all([
         fetchAll<TicketWithItems>((from, to) =>
           sb()
             .from('tickets')
@@ -31,15 +29,11 @@ export default function DecomptePage() {
         ),
         sb().from('profiles').select('id, display_name, role'),
         sb().from('tables').select('*'),
-        sb().from('products').select('*'),
-        sb().from('categories').select('*'),
       ])
       return {
         tickets,
         profiles: must(profiles) as Profile[],
         tables: must(tables) as DiningTable[],
-        products: must(products) as Product[],
-        categories: must(categories) as Category[],
       }
     },
     { tables: ['tickets', 'ticket_items'], fallbackMs: 15000 },
@@ -49,12 +43,9 @@ export default function DecomptePage() {
     if (!data) return null
     const w = new Map(data.profiles.map((p) => [p.id, p.display_name]))
     const t = new Map(data.tables.map((x) => [x.id, x.name]))
-    const c = new Map(data.categories.map((x) => [x.id, x.name]))
-    const pc = new Map(data.products.map((p) => [p.id, p.category_id ? (c.get(p.category_id) ?? 'Sans catégorie') : 'Sans catégorie']))
     return {
       waiterName: (id) => w.get(id) ?? '?',
       tableName: (id) => t.get(id) ?? '?',
-      categoryOf: (pid) => (pid ? (pc.get(pid) ?? 'Produit supprimé') : 'Produit supprimé'),
     }
   }, [data])
 
@@ -84,7 +75,7 @@ function Decompte({ tickets, lk }: { tickets: TicketWithItems[]; lk: Lookup }) {
 
   function exportLines() {
     const rows: (string | number)[][] = [
-      ['Ticket', 'Envoyé à', 'Statut', 'Table', 'Serveur', 'Produit', 'Catégorie', 'Quantité', 'Prix unitaire', 'Total ligne', 'Note'],
+      ['Ticket', 'Envoyé à', 'Statut', 'Table', 'Serveur', 'Produit', 'Quantité', 'Prix unitaire', 'Total ligne', 'Note'],
     ]
     for (const t of tickets)
       for (const i of t.ticket_items)
@@ -95,7 +86,6 @@ function Decompte({ tickets, lk }: { tickets: TicketWithItems[]; lk: Lookup }) {
           lk.tableName(t.table_id),
           lk.waiterName(t.waiter_id),
           i.product_name,
-          lk.categoryOf(i.product_id),
           i.quantity,
           csvEuros(i.unit_price_cents),
           csvEuros(i.quantity * i.unit_price_cents),
@@ -273,13 +263,12 @@ function Stats({
   data,
   lk,
 }: {
-  data: { tickets: TicketWithItems[]; profiles: Profile[]; categories: Category[] }
+  data: { tickets: TicketWithItems[]; profiles: Profile[] }
   lk: Lookup
 }) {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [waiterId, setWaiterId] = useState('')
-  const [category, setCategory] = useState('')
   const [bucket, setBucket] = useState<15 | 60>(15)
   const [metric, setMetric] = useState<'cents' | 'items'>('cents')
   const [productSort, setProductSort] = useState<'cents' | 'items'>('items')
@@ -288,26 +277,24 @@ function Stats({
     from: from ? new Date(from).getTime() : null,
     to: to ? new Date(to).getTime() : null,
     waiterId,
-    category,
     bucketMinutes: bucket,
   }
   const s = useMemo(
     () => computeStats(data.tickets, lk, filters),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data.tickets, lk, from, to, waiterId, category, bucket],
+    [data.tickets, lk, from, to, waiterId, bucket],
   )
 
   const sentTimes = data.tickets.map((t) => t.sent_at).filter(Boolean) as string[]
   const firstSent = sentTimes.length ? Math.min(...sentTimes.map((x) => new Date(x).getTime())) : null
   const waiters = data.profiles.filter((p) => p.role !== 'bar')
-  const categoryNames = [...new Set([...data.categories.map((c) => c.name), 'Sans catégorie'])]
 
   const fmtMetric = metric === 'cents' ? formatPrice : (v: number) => `${v} art.`
   const pct = (x: number) => `${Math.round(x * 100)} %`
 
   function exportStats() {
     const rows: (string | number)[][] = [
-      ['STATISTIQUES', `Période : ${from || 'début'} → ${to || 'fin'}`, `Serveur : ${waiterId ? lk.waiterName(waiterId) : 'tous'}`, `Catégorie : ${category || 'toutes'}`],
+      ['STATISTIQUES', `Période : ${from || 'début'} → ${to || 'fin'}`, `Serveur : ${waiterId ? lk.waiterName(waiterId) : 'tous'}`],
       [],
       ['Indicateur', 'Valeur'],
       ['CA (€)', csvEuros(s.totalCents)],
@@ -324,10 +311,6 @@ function Stats({
       ['PRODUITS'],
       ['Produit', 'Quantité', 'CA (€)', 'Part CA'],
       ...[...s.products].sort((a, b) => b.cents - a.cents).map((p) => [p.label, p.items, csvEuros(p.cents), s.totalCents ? pct(p.cents / s.totalCents) : '']),
-      [],
-      ['CATÉGORIES'],
-      ['Catégorie', 'Quantité', 'CA (€)', 'Part CA'],
-      ...s.categories.map((c) => [c.label, c.items, csvEuros(c.cents), s.totalCents ? pct(c.cents / s.totalCents) : '']),
       [],
       ['SERVEURS'],
       ['Serveur', 'CA (€)', 'Tickets', 'Articles', 'Panier moyen (€)'],
@@ -367,7 +350,7 @@ function Stats({
           Jusqu&apos;à
           <input type="datetime-local" className="input mt-1" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
-        <select className="input" value={waiterId} onChange={(e) => setWaiterId(e.target.value)} aria-label="Serveur">
+        <select className="input col-span-2" value={waiterId} onChange={(e) => setWaiterId(e.target.value)} aria-label="Serveur">
           <option value="">Tous les serveurs</option>
           {waiters.map((w) => (
             <option key={w.id} value={w.id}>
@@ -375,23 +358,14 @@ function Stats({
             </option>
           ))}
         </select>
-        <select className="input" value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Catégorie">
-          <option value="">Toutes catégories</option>
-          {categoryNames.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
         <div className="col-span-2 flex flex-wrap gap-2">
-          {(from || to || waiterId || category) && (
+          {(from || to || waiterId) && (
             <button
               className="btn btn-sm btn-ghost"
               onClick={() => {
                 setFrom('')
                 setTo('')
                 setWaiterId('')
-                setCategory('')
               }}
             >
               Réinitialiser
@@ -457,10 +431,6 @@ function Stats({
               sub: productSort === 'cents' ? `${p.items} vendus` : formatPrice(p.cents),
             }))}
         />
-      </Section>
-
-      <Section title="Part des catégories (CA)">
-        <BarList share format={formatPrice} rows={s.categories.map((c) => ({ key: c.key, label: c.label, value: c.cents, sub: `${c.items} articles` }))} />
       </Section>
 
       {/* ---------- serveurs ---------- */}
