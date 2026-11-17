@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useProfile } from '@/components/ProfileContext'
 import { useToast } from '@/components/Toaster'
-import { ConfirmButton, Loading, StatusChip } from '@/components/ui'
+import { Loading, StatusChip } from '@/components/ui'
 import { formatAgo, formatPrice, formatTime, itemsCount, itemsTotal } from '@/lib/format'
 import { must, sb, useLive, useNow } from '@/lib/live'
 import type { DiningTable, Product, TicketWithItems } from '@/lib/types'
@@ -182,8 +182,6 @@ export default function TicketPage() {
   const available = products.filter((p) => p.is_available)
 
   const canServe = (isOwner || isAdmin) && ['envoye', 'en_preparation', 'pret'].includes(ticket.status)
-  const canCancel =
-    (isOwner && ticket.status !== 'servi' && ticket.status !== 'annule') || (isAdmin && ticket.status !== 'annule')
 
   return (
     <div className="space-y-4">
@@ -307,11 +305,6 @@ export default function TicketPage() {
           <button className="btn btn-success flex-1" onClick={() => setStatus('servi', 'Ticket servi')}>
             ✔ Marquer servi
           </button>
-        )}
-        {canCancel && (
-          <ConfirmButton className="btn btn-danger flex-1" onConfirm={() => setStatus('annule', 'Ticket supprimé')}>
-            Supprimer le ticket
-          </ConfirmButton>
         )}
       </div>
 
