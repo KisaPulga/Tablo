@@ -8,13 +8,14 @@ import { useToast } from '@/components/Toaster'
 import { Loading, StatusChip } from '@/components/ui'
 import { formatAgo, formatPrice, formatTime, itemsCount, itemsTotal } from '@/lib/format'
 import { must, sb, useLive, useNow } from '@/lib/live'
-import type { DiningTable, Product, TicketWithItems } from '@/lib/types'
+import type { Category, DiningTable, Product, TicketWithItems } from '@/lib/types'
 
 type Line = {
   product_id: string
   product_name: string
   unit_price_cents: number
   quantity: number
+  note: string
 }
 
 function linesFromTicket(t: TicketWithItems): Line[] {
@@ -26,6 +27,7 @@ function linesFromTicket(t: TicketWithItems): Line[] {
       product_name: i.product_name,
       unit_price_cents: i.unit_price_cents,
       quantity: i.quantity,
+      note: i.note ?? '',
     }))
 }
 
@@ -42,25 +44,28 @@ export default function TicketPage() {
         await sb().from('tickets').select('*, ticket_items(*)').eq('id', id).maybeSingle(),
       ) as TicketWithItems | null
       if (!ticket) return null
-      const [table, waiter, products] = await Promise.all([
+      const [table, waiter, products, categories] = await Promise.all([
         sb().from('tables').select('*').eq('id', ticket.table_id).maybeSingle(),
         sb().from('profiles').select('display_name').eq('id', ticket.waiter_id).maybeSingle(),
         sb().from('products').select('*').order('sort_order').order('name'),
+        sb().from('categories').select('*').order('sort_order').order('name'),
       ])
       return {
         ticket,
         table: must(table) as DiningTable | null,
         waiterName: (must(waiter) as { display_name: string } | null)?.display_name ?? '?',
         products: must(products) as Product[],
+        categories: must(categories) as Category[],
       }
     },
-    { tables: ['tickets', 'ticket_items', 'products'], key: id },
+    { tables: ['tickets', 'ticket_items', 'products', 'categories'], key: id },
   )
 
   // ---------- état local de saisie ----------
   const [lines, setLines] = useState<Line[]>([])
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [openNote, setOpenNote] = useState<string | null>(null)
   const linesRef = useRef(lines)
   const dirtyRef = useRef(dirty)
   useEffect(() => {
@@ -90,7 +95,7 @@ export default function TicketPage() {
   const save = useCallback(
     async (send: boolean) => {
       setSaving(true)
-      const payload = linesRef.current.map((l) => ({ product_id: l.product_id, quantity: l.quantity }))
+      const payload = linesRef.current.map((l) => ({ product_id: l.product_id, quantity: l.quantity, note: l.note }))
       const savedLines = linesRef.current
       const ok = await toast.attempt(send ? 'Envoi au bar' : 'Enregistrement', async () => {
         must(await sb().rpc('save_ticket', { p_ticket_id: id, p_note: null, p_items: payload, p_send: send }))
@@ -119,7 +124,7 @@ export default function TicketPage() {
   useEffect(() => {
     return () => {
       if (dirtyRef.current && isDraft) {
-        const payload = linesRef.current.map((l) => ({ product_id: l.product_id, quantity: l.quantity }))
+        const payload = linesRef.current.map((l) => ({ product_id: l.product_id, quantity: l.quantity, note: l.note }))
         void sb().rpc('save_ticket', { p_ticket_id: id, p_note: null, p_items: payload, p_send: false })
       }
     }
@@ -129,7 +134,7 @@ export default function TicketPage() {
   if (!data) return error ? <Loading error={error} /> : <p className="card p-4">Ticket introuvable.</p>
   if (!ticket) return <p className="card p-4">Ticket introuvable.</p>
 
-  const { products, table, waiterName } = data
+  const { products, categories, table, waiterName } = data
 
   function change(fn: (l: Line[]) => Line[]) {
     setLines((prev) => fn(prev))
@@ -140,13 +145,16 @@ export default function TicketPage() {
     change((ls) => {
       const i = ls.findIndex((l) => l.product_id === p.id)
       if (i >= 0) return ls.map((l, j) => (j === i ? { ...l, quantity: l.quantity + 1 } : l))
-      return [...ls, { product_id: p.id, product_name: p.name, unit_price_cents: p.price_cents, quantity: 1 }]
+      return [...ls, { product_id: p.id, product_name: p.name, unit_price_cents: p.price_cents, quantity: 1, note: '' }]
     })
   }
   function setQty(pid: string, delta: number) {
     change((ls) =>
       ls.map((l) => (l.product_id === pid ? { ...l, quantity: l.quantity + delta } : l)).filter((l) => l.quantity > 0),
     )
+  }
+  function setLineNote(pid: string, value: string) {
+    change((ls) => ls.map((l) => (l.product_id === pid ? { ...l, note: value } : l)))
   }
 
   async function setStatus(status: 'servi' | 'annule', label: string) {
@@ -174,6 +182,10 @@ export default function TicketPage() {
   const total = itemsTotal(lines)
   const qtyByProduct = new Map(lines.map((l) => [l.product_id, l.quantity]))
   const available = products.filter((p) => p.is_available)
+  const groups = [
+    ...categories.map((c) => ({ id: c.id, name: c.name, items: available.filter((p) => p.category_id === c.id) })),
+    { id: 'none', name: 'Autres', items: available.filter((p) => !p.category_id || !categories.some((c) => c.id === p.category_id)) },
+  ].filter((g) => g.items.length > 0)
 
   const canServe = (isOwner || isAdmin) && ['envoye', 'en_preparation', 'pret'].includes(ticket.status)
 
@@ -203,15 +215,27 @@ export default function TicketPage() {
       {/* ---------- choix des produits ---------- */}
       {editable && (
         <section className="space-y-3">
-          {available.length === 0 && <p className="card p-4 text-muted">Aucun produit disponible dans le menu.</p>}
+          {groups.length > 1 && (
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+              {groups.map((g) => (
+                <a key={g.id} href={`#cat-${g.id}`} className="btn btn-sm btn-ghost shrink-0">
+                  {g.name}
+                </a>
+              ))}
+            </div>
+          )}
+          {groups.length === 0 && <p className="card p-4 text-muted">Aucun produit disponible dans le menu.</p>}
+          {groups.map((g) => (
+            <div key={g.id} id={`cat-${g.id}`} className="scroll-mt-32">
+              <h2 className="mb-2 text-sm font-bold tracking-wide text-muted uppercase">{g.name}</h2>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {available.map((p) => {
+                {g.items.map((p) => {
                   const q = qtyByProduct.get(p.id)
                   return (
                     <button
                       key={p.id}
                       onClick={() => add(p)}
-                      className={`relative flex min-h-16 flex-col items-start justify-center rounded-xl border-2 border-white px-3 py-2 text-left active:scale-[0.96] ${
+                      className={`relative flex min-h-14 flex-col items-start justify-center rounded-xl border-2 border-white px-3 py-1.5 text-left active:scale-[0.96] ${
                         q ? 'bg-accent' : 'bg-surface'
                       }`}
                     >
@@ -226,6 +250,8 @@ export default function TicketPage() {
                   )
                 })}
               </div>
+            </div>
+          ))}
         </section>
       )}
 
@@ -246,6 +272,13 @@ export default function TicketPage() {
               </div>
               {editable ? (
                 <>
+                  <button
+                    className="btn btn-sm btn-ghost"
+                    aria-label="Note"
+                    onClick={() => setOpenNote(openNote === l.product_id ? null : l.product_id)}
+                  >
+                    📝
+                  </button>
                   <button className="btn h-11 w-11 p-0 text-xl" onClick={() => setQty(l.product_id, -1)} aria-label="Retirer">
                     −
                   </button>
@@ -258,6 +291,27 @@ export default function TicketPage() {
                 <span className="text-lg font-bold">×{l.quantity}</span>
               )}
             </div>
+            {editable && openNote === l.product_id ? (
+              <div className="mt-2 flex gap-2">
+                {[
+                  { label: 'Rien', value: '' },
+                  { label: 'Tempéré', value: 'Tempéré' },
+                ].map((o) => (
+                  <button
+                    key={o.label}
+                    className={`btn btn-sm flex-1 ${l.note === o.value ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => {
+                      setLineNote(l.product_id, o.value)
+                      setOpenNote(null)
+                    }}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              l.note && <div className="mt-1 text-sm text-amber-300">— {l.note}</div>
+            )}
           </div>
         ))}
         <div className="flex items-center justify-between px-4 py-3 text-xl font-bold">

@@ -94,7 +94,7 @@ function Decompte({ tickets, lk, periodLabel }: { tickets: TicketWithItems[]; lk
 
   function exportLines() {
     const rows: (string | number)[][] = [
-      ['Ticket', 'Envoyé à', 'Statut', 'Table', 'Serveur', 'Produit', 'Quantité', 'Prix unitaire', 'Total ligne'],
+      ['Ticket', 'Envoyé à', 'Statut', 'Table', 'Serveur', 'Produit', 'Quantité', 'Prix unitaire', 'Total ligne', 'Note'],
     ]
     for (const t of tickets)
       for (const i of t.ticket_items)
@@ -108,6 +108,7 @@ function Decompte({ tickets, lk, periodLabel }: { tickets: TicketWithItems[]; lk
           i.quantity,
           csvEuros(i.unit_price_cents),
           csvEuros(i.quantity * i.unit_price_cents),
+          i.note ?? '',
         ])
     downloadCsv(`tablo-lignes${fileSuffix(periodLabel)}.csv`, rows)
   }
