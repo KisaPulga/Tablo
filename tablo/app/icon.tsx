@@ -1,0 +1,10 @@
+import { ImageResponse } from 'next/og'
+import { AppIcon } from '@/lib/appIcon'
+
+// Icône de l'onglet du navigateur (et d'Android via le manifest) — grande taille, réduite par le navigateur
+export const size = { width: 512, height: 512 }
+export const contentType = 'image/png'
+
+export default function Icon() {
+  return new ImageResponse(<AppIcon size={size.width} />, { ...size })
+}

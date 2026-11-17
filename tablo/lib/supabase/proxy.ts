@@ -26,7 +26,7 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims()
   const user = data?.claims
 
-  const isPublic = ['/login', '/auth'].some((p) => request.nextUrl.pathname.startsWith(p))
+  const isPublic = ['/login', '/auth', '/icon', '/apple-icon', '/manifest.webmanifest'].some((p) => request.nextUrl.pathname.startsWith(p))
   if (!user && !isPublic) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
