@@ -52,9 +52,12 @@ export function NoPageBounce() {
   return null
 }
 
-/** Hauteur max du plan sur l'écran Tables : tout l'écran moins en-tête, titre et barre du bas */
+/**
+ * Hauteur max du plan sur l'écran Tables : tout l'écran moins
+ * en-tête (~3.3rem) + marge et titre (~4rem) + barre du bas (~4rem) + petite marge
+ */
 export const PLAN_FIT_HEIGHT =
-  '100dvh - 15rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)'
+  '100dvh - 12.25rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)'
 
 /** Style de positionnement d'une table sur le plan */
 export function tableBoxStyle(

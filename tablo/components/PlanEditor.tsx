@@ -20,12 +20,6 @@ function normAngle(a: number) {
 
 const MIN_SIZE = 4 // %
 
-const ASPECTS = [
-  { label: 'Portrait', value: 3 / 4 },
-  { label: 'Carré', value: 1 },
-  { label: 'Paysage', value: 4 / 3 },
-]
-
 export function PlanEditor({ tables, reload }: { tables: DiningTable[]; reload: () => void }) {
   const toast = useToast()
   const { settings, reload: reloadSettings } = usePlanSettings()
@@ -133,11 +127,6 @@ export function PlanEditor({ tables, reload }: { tables: DiningTable[]; reload: 
     )
   }
 
-  async function setAspect(aspect: number) {
-    const ok = await toast.attempt('Format du plan', () => saveSetting('floor_aspect', String(aspect)))
-    if (ok) void reloadSettings()
-  }
-
   async function removeImage() {
     const ok = await toast.attempt("Suppression de l'image", () => saveSetting('floor_plan', null))
     if (ok) void reloadSettings()
@@ -147,25 +136,14 @@ export function PlanEditor({ tables, reload }: { tables: DiningTable[]; reload: 
 
   return (
     <div className="space-y-4">
-      {/* ---------- fond du plan ---------- */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-muted">Format :</span>
-        {ASPECTS.map((a) => (
-          <button
-            key={a.label}
-            className={`btn btn-sm ${Math.abs(settings.aspect - a.value) < 0.01 ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setAspect(a.value)}
-          >
-            {a.label}
-          </button>
-        ))}
-        {/* image importée auparavant : on peut encore la retirer */}
-        {settings.image && (
+      {/* image importée auparavant : on peut encore la retirer */}
+      {settings.image && (
+        <div className="flex flex-wrap items-center gap-2">
           <ConfirmButton className="btn btn-sm btn-ghost" onConfirm={removeImage}>
             Retirer l&apos;image
           </ConfirmButton>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ---------- plan ---------- */}
       <FloorPlanCanvas ref={canvasRef} aspect={settings.aspect} image={settings.image} onPointerDown={() => setSelected(null)}>

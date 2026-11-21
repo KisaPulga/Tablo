@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { must, sb } from '@/lib/live'
 import type { DiningTable } from '@/lib/types'
 
-export const DEFAULT_ASPECT = 3 / 4 // largeur / hauteur (portrait, adapté au téléphone)
+/** Format unique du plan : portrait allongé 9:16 (largeur / hauteur), pour remplir l'écran du téléphone */
+export const PLAN_ASPECT = 9 / 16
 
 export type PlanSettings = { image: string | null; aspect: number }
 
@@ -15,14 +16,12 @@ export function usePlanSettings() {
   const reload = useCallback(async () => {
     try {
       const rows = must(
-        await sb().from('settings').select('key, value').in('key', ['floor_plan', 'floor_aspect']),
+        await sb().from('settings').select('key, value').eq('key', 'floor_plan'),
       ) as { key: string; value: string | null }[]
-      const get = (k: string) => rows.find((r) => r.key === k)?.value ?? null
-      const aspect = Number(get('floor_aspect'))
-      setSettings({ image: get('floor_plan'), aspect: aspect > 0 ? aspect : DEFAULT_ASPECT })
+      setSettings({ image: rows[0]?.value ?? null, aspect: PLAN_ASPECT })
     } catch {
       // table settings absente (migration 06 pas faite) : plan vierge
-      setSettings({ image: null, aspect: DEFAULT_ASPECT })
+      setSettings({ image: null, aspect: PLAN_ASPECT })
     }
   }, [])
 
