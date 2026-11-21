@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { BarList, TimeChart } from '@/components/Charts'
-import { PeriodButtons } from '@/components/PeriodButtons'
+import { OUTSIDE_EVENINGS, PERIOD_PRESETS, PeriodButtons, eveningOf } from '@/components/PeriodButtons'
 import { useToast } from '@/components/Toaster'
 import { Loading } from '@/components/ui'
 import { csvEuros, downloadCsv, formatDuration, formatPrice, formatTime, itemsCount, itemsTotal } from '@/lib/format'
@@ -64,7 +64,7 @@ export default function DecomptePage() {
     const ts = new Date(t.sent_at).getTime()
     return (fromTs == null || ts >= fromTs) && (toTs == null || ts <= toTs)
   })
-  const periodLabel = from || to ? `${from ? fmtInput(from) : 'début'} → ${to ? fmtInput(to) : 'fin'}` : 'toute la base'
+  const periodLabel = from || to ? `${from ? fmtInput(from) : 'début'} → ${to ? fmtInput(to) : 'fin'}` : ALL_LABEL
 
   return (
     <div className="space-y-4">
@@ -95,11 +95,18 @@ function Decompte({ tickets, lk, periodLabel }: { tickets: TicketWithItems[]; lk
 
   function exportLines() {
     const rows: (string | number)[][] = [
-      ['Ticket', 'Envoyé à', 'Statut', 'Table', 'Serveur', 'Produit', 'Quantité', 'Prix unitaire', 'Total ligne', 'Note'],
+      ['Soirée', 'Ticket', 'Envoyé à', 'Statut', 'Table', 'Serveur', 'Produit', 'Quantité', 'Prix unitaire', 'Total ligne', 'Note'],
     ]
-    for (const t of tickets)
+    // classé par soirée (Vendredi, Samedi, puis hors soirée), puis par heure d'envoi
+    const order = (t: TicketWithItems) => {
+      const i = EVENING_ORDER.indexOf(eveningOf(t.sent_at))
+      return i < 0 ? EVENING_ORDER.length : i
+    }
+    const sorted = [...tickets].sort((a, b) => order(a) - order(b) || (a.sent_at ?? '').localeCompare(b.sent_at ?? ''))
+    for (const t of sorted)
       for (const i of t.ticket_items)
         rows.push([
+          eveningOf(t.sent_at),
           t.number,
           t.sent_at ? new Date(t.sent_at).toLocaleString('fr-FR') : '',
           STATUS_LABEL[t.status],
@@ -115,29 +122,15 @@ function Decompte({ tickets, lk, periodLabel }: { tickets: TicketWithItems[]; lk
   }
 
   function exportSummary() {
-    const rows: (string | number)[][] = [
-      ['DÉCOMPTE', `Période : ${periodLabel}`],
-      [],
-      ['TOTAL GÉNÉRAL'],
-      ['Tickets', 'Articles', 'CA (€)'],
-      [d.total.tickets, d.total.items, csvEuros(d.total.cents)],
-      [],
-      ['PAR SERVEUR'],
-      ['Serveur', 'Tickets', 'Articles', 'CA (€)'],
-      ...d.byWaiter.map((w) => [w.label, w.tickets, w.items, csvEuros(w.cents)]),
-      [],
-      ['PAR PRODUIT'],
-      ['Produit', 'Quantité', 'CA (€)'],
-      ...d.byProduct.map((p) => [p.label, p.items, csvEuros(p.cents)]),
-      [],
-      ['DÉTAIL SERVEUR × PRODUIT'],
-      ['Serveur', 'Produit', 'Quantité', 'CA (€)'],
-      ...d.byWaiter.flatMap((w) => (d.cross.get(w.key) ?? []).map((p) => [w.label, p.label, p.items, csvEuros(p.cents)])),
-      [],
-      ['PAR TABLE'],
-      ['Table', 'Tickets', 'Articles', 'CA (€)'],
-      ...d.byTable.map((t) => [t.label, t.tickets, t.items, csvEuros(t.cents)]),
-    ]
+    const rows: (string | number)[][] = [['DÉCOMPTE', `Période : ${periodLabel}`], []]
+    if (periodLabel === ALL_LABEL) {
+      // « Tout » : un bloc par soirée, puis le total de toutes les soirées
+      for (const g of eveningGroups(tickets)) {
+        rows.push([`===== ${g.title.toUpperCase()} =====`], [], ...summaryRows(computeDecompte(g.tickets, lk)), [], [])
+      }
+      rows.push(['===== TOUTES SOIRÉES CONFONDUES ====='], [])
+    }
+    rows.push(...summaryRows(d))
     downloadCsv(`tablo-decompte${fileSuffix(periodLabel)}.csv`, rows)
   }
 
@@ -313,13 +306,27 @@ function Stats({
     const rows: (string | number)[][] = [
       ['STATISTIQUES', `Période : ${periodLabel}`, `Serveur : ${waiterId ? lk.waiterName(waiterId) : 'tous'}`],
       [],
+    ]
+    if (periodLabel === ALL_LABEL) {
+      // « Tout » : un bloc par soirée (horaires des boutons Ven. / Sam.), puis l'ensemble
+      for (const p of PERIOD_PRESETS) {
+        const sp = computeStats(data.tickets, lk, { ...filters, from: new Date(p.from).getTime(), to: new Date(p.to).getTime() })
+        rows.push([`===== ${p.name.toUpperCase()} (${p.hours}) =====`], [], ...statsRows(sp), [], [])
+      }
+      rows.push(['===== TOUTES SOIRÉES CONFONDUES ====='], [])
+    }
+    rows.push(...statsRows(s))
+    downloadCsv(`tablo-statistiques${fileSuffix(periodLabel)}.csv`, rows)
+  }
+
+  function statsRows(s: ReturnType<typeof computeStats>): (string | number)[][] {
+    return [
       ['Indicateur', 'Valeur'],
       ['CA (€)', csvEuros(s.totalCents)],
       ['Tickets', s.nTickets],
       ['Articles', s.totalItems],
       ['Panier moyen (€)', csvEuros(Math.round(s.avgBasket))],
       ['Articles par ticket', s.avgItems.toFixed(2).replace('.', ',')],
-      ['Taux d’annulation', pct(s.cancelRate)],
       [],
       [`VENTES PAR TRANCHE DE ${bucket} MIN`],
       ['Début', 'Articles', 'CA (€)'],
@@ -341,12 +348,7 @@ function Stats({
       ['Serveur', 'Envoyé → prêt', 'Prêt → servi'],
       ['Global', ...[s.serviceGlobal.toReady, s.serviceGlobal.toServed].map((x) => (x == null ? '' : Math.round(x / 1000)))],
       ...s.serviceByWaiter.map((w) => [w.name, ...[w.toReady, w.toServed].map((x) => (x == null ? '' : Math.round(x / 1000)))]),
-      [],
-      ['ANNULATIONS'],
-      ['Serveur', 'Tickets envoyés', 'Annulés', 'Taux'],
-      ...s.cancelByWaiter.map((c) => [c.name, c.sent, c.cancelled, pct(c.rate)]),
     ]
-    downloadCsv(`tablo-statistiques${fileSuffix(periodLabel)}.csv`, rows)
   }
 
   return (
@@ -374,11 +376,10 @@ function Stats({
       </section>
 
       {/* ---------- indicateurs ---------- */}
-      <section className="card grid grid-cols-2 divide-line text-center sm:grid-cols-4 sm:divide-x">
-        <Kpi label="Chiffre d'affaires" value={formatPrice(s.totalCents)} big />
+      <section className="card grid grid-cols-2 divide-line text-center sm:grid-cols-3 sm:divide-x">
+        <Kpi label="Chiffre d'affaires" value={formatPrice(s.totalCents)} big className="col-span-2 sm:col-span-1" />
         <Kpi label="Panier moyen" value={formatPrice(Math.round(s.avgBasket))} />
         <Kpi label="Articles / ticket" value={s.avgItems.toFixed(1).replace('.', ',')} />
-        <Kpi label="Taux d'annulation" value={pct(s.cancelRate)} sub={`${s.cancelledTotal} / ${s.sentTotal}`} />
       </section>
 
       {/* ---------- ventes dans le temps ---------- */}
@@ -485,29 +486,6 @@ function Stats({
         )}
       </Section>
 
-      {/* ---------- annulations ---------- */}
-      <Section title="Annulations par serveur">
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs text-muted">
-            <tr>
-              <th className="py-1">Serveur</th>
-              <th className="text-right">Envoyés</th>
-              <th className="text-right">Annulés</th>
-              <th className="text-right">Taux</th>
-            </tr>
-          </thead>
-          <tbody>
-            {s.cancelByWaiter.map((c) => (
-              <tr key={c.id} className="border-t border-line">
-                <td className="py-1.5">{c.name}</td>
-                <td className="text-right">{c.sent}</td>
-                <td className="text-right">{c.cancelled}</td>
-                <td className="text-right font-bold">{pct(c.rate)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Section>
 
       <DeleteAllTickets />
     </div>
@@ -590,8 +568,50 @@ function fmtInput(v: string) {
   })
 }
 
+const ALL_LABEL = 'toute la base'
+
+/* ============================== EXPORT PAR SOIRÉE ============================== */
+
+const EVENING_ORDER = PERIOD_PRESETS.map((p) => p.name)
+
+/** Tickets regroupés par soirée (Vendredi, Samedi, puis « Hors soirée » s'il y en a) */
+function eveningGroups(tickets: TicketWithItems[]) {
+  const groups = PERIOD_PRESETS.map((p) => ({
+    title: `${p.name} (${p.hours})`,
+    tickets: tickets.filter((t) => eveningOf(t.sent_at) === p.name),
+  }))
+  const outside = tickets.filter((t) => eveningOf(t.sent_at) === OUTSIDE_EVENINGS)
+  if (outside.length) groups.push({ title: OUTSIDE_EVENINGS, tickets: outside })
+  return groups
+}
+
+/** Lignes du CSV « décompte » pour un ensemble de tickets */
+function summaryRows(d: ReturnType<typeof computeDecompte>): (string | number)[][] {
+  return [
+    ['TOTAL'],
+    ['Tickets', 'Articles', 'CA (€)'],
+    [d.total.tickets, d.total.items, csvEuros(d.total.cents)],
+    [],
+    ['PAR SERVEUR'],
+    ['Serveur', 'Tickets', 'Articles', 'CA (€)'],
+    ...d.byWaiter.map((w) => [w.label, w.tickets, w.items, csvEuros(w.cents)]),
+    [],
+    ['PAR PRODUIT'],
+    ['Produit', 'Quantité', 'CA (€)'],
+    ...d.byProduct.map((p) => [p.label, p.items, csvEuros(p.cents)]),
+    [],
+    ['DÉTAIL SERVEUR × PRODUIT'],
+    ['Serveur', 'Produit', 'Quantité', 'CA (€)'],
+    ...d.byWaiter.flatMap((w) => (d.cross.get(w.key) ?? []).map((p) => [w.label, p.label, p.items, csvEuros(p.cents)])),
+    [],
+    ['PAR TABLE'],
+    ['Table', 'Tickets', 'Articles', 'CA (€)'],
+    ...d.byTable.map((t) => [t.label, t.tickets, t.items, csvEuros(t.cents)]),
+  ]
+}
+
 function fileSuffix(periodLabel: string) {
-  if (periodLabel === 'toute la base') return ''
+  if (periodLabel === ALL_LABEL) return ''
   return '-' + periodLabel.normalize('NFD').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
 }
 
@@ -645,9 +665,9 @@ function Section({ title, right, children }: { title: string; right?: React.Reac
   )
 }
 
-function Kpi({ label, value, sub, big }: { label: string; value: string; sub?: string; big?: boolean }) {
+function Kpi({ label, value, sub, big, className = '' }: { label: string; value: string; sub?: string; big?: boolean; className?: string }) {
   return (
-    <div className="p-3">
+    <div className={`p-3 ${className}`}>
       <div className="text-xs text-muted">{label}</div>
       <div className={`font-bold tabular-nums ${big ? 'text-2xl' : 'text-xl'}`}>{value}</div>
       {sub && <div className="text-xs text-muted">{sub}</div>}

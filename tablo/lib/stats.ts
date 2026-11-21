@@ -138,15 +138,6 @@ export function computeStats(all: TicketWithItems[], lk: Lookup, f: StatsFilters
     if (ms != null && (!longest || ms > longest.ms)) longest = { ticket: t, ms }
   }
 
-  // ---- annulations (tickets envoyés puis annulés) ----
-  const cancelByWaiter = [...new Set(sent.map((t) => t.waiter_id))]
-    .map((w) => {
-      const mine = sent.filter((t) => t.waiter_id === w)
-      const cancelled = mine.filter((t) => t.status === 'annule').length
-      return { id: w, name: lk.waiterName(w), sent: mine.length, cancelled, rate: mine.length ? cancelled / mine.length : 0 }
-    })
-    .sort((a, b) => b.rate - a.rate)
-  const cancelledTotal = sent.filter((t) => t.status === 'annule').length
 
   const nTickets = ticketIds.size
   return {
@@ -162,9 +153,5 @@ export function computeStats(all: TicketWithItems[], lk: Lookup, f: StatsFilters
     serviceGlobal,
     serviceByWaiter,
     longest,
-    cancelRate: sent.length ? cancelledTotal / sent.length : 0,
-    cancelledTotal,
-    sentTotal: sent.length,
-    cancelByWaiter,
   }
 }

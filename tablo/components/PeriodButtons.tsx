@@ -17,10 +17,20 @@ export function toLocalInput(d: Date) {
 const fri = EVENT_FRIDAY
 export const PERIOD_PRESETS = [
   // vendredi : toute la journée jusqu'au samedi 4 h
-  { label: 'Ven.', day: at(fri, 0, 0), from: toLocalInput(at(fri, 0, 0)), to: toLocalInput(at(fri, 1, 4)) },
+  { label: 'Ven.', name: 'Vendredi', hours: 'vendredi 0 h → samedi 4 h', day: at(fri, 0, 0), from: toLocalInput(at(fri, 0, 0)), to: toLocalInput(at(fri, 1, 4)) },
   // samedi : 18 h jusqu'au dimanche 4 h
-  { label: 'Sam.', day: at(fri, 1, 0), from: toLocalInput(at(fri, 1, 18)), to: toLocalInput(at(fri, 2, 4)) },
+  { label: 'Sam.', name: 'Samedi', hours: 'samedi 18 h → dimanche 4 h', day: at(fri, 1, 0), from: toLocalInput(at(fri, 1, 18)), to: toLocalInput(at(fri, 2, 4)) },
 ]
+
+export const OUTSIDE_EVENINGS = 'Hors soirée'
+
+/** Soirée d'un ticket selon son heure d'envoi au bar (mêmes horaires que les boutons Ven. / Sam.) */
+export function eveningOf(sentAt: string | null): string {
+  if (!sentAt) return OUTSIDE_EVENINGS
+  const ts = new Date(sentAt).getTime()
+  const p = PERIOD_PRESETS.find((x) => ts >= new Date(x.from).getTime() && ts <= new Date(x.to).getTime())
+  return p ? p.name : OUTSIDE_EVENINGS
+}
 
 /** Garde les tickets envoyés au bar dans la période (from/to au format datetime-local, vides = pas de borne) */
 export function inPeriod<T extends { sent_at: string | null }>(tickets: T[], from: string, to: string): T[] {
