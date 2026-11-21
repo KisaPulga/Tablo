@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'serveur' | 'bar'
+export type Role = 'admin' | 'serveur' | 'bar' | 'viewer'
 
 export type TicketStatus = 'brouillon' | 'envoye' | 'en_preparation' | 'pret' | 'servi' | 'annule'
 
@@ -103,4 +103,5 @@ export const ROLE_LABEL: Record<Role, string> = {
   admin: 'Admin',
   serveur: 'Serveur',
   bar: 'Bar',
+  viewer: 'Viewer',
 }

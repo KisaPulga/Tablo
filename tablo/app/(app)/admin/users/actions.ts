@@ -8,7 +8,7 @@ import type { Role } from '@/lib/types'
 
 type Result = { error?: string; ok?: string }
 
-const ROLES: Role[] = ['admin', 'serveur', 'bar']
+const ROLES: Role[] = ['admin', 'serveur', 'bar', 'viewer']
 
 /** Chaque action revérifie que l'appelant est admin (une Server Action est un endpoint public). */
 async function assertAdmin() {

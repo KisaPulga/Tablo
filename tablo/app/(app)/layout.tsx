@@ -18,6 +18,8 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
 
   // La tablette du bar n'a besoin que de l'écran bar
   if (profile.role === 'bar') redirect('/bar')
+  // Le viewer ne voit que l'écran des ventes (lecture seule)
+  if (profile.role === 'viewer') redirect('/viewer')
 
   return <AppShell profile={profile}>{children}</AppShell>
 }

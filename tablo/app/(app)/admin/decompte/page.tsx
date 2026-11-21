@@ -303,7 +303,7 @@ function Stats({
     [data.tickets, lk, fromTs, toTs, waiterId, bucket],
   )
 
-  const waiters = data.profiles.filter((p) => p.role !== 'bar')
+  const waiters = data.profiles.filter((p) => p.role !== 'bar' && p.role !== 'viewer')
 
   const fmtMetric = metric === 'cents' ? formatPrice : (v: number) => `${v} art.`
   const pct = (x: number) => `${Math.round(x * 100)} %`
