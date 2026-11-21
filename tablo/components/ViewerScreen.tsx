@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { PeriodButtons, inPeriod } from '@/components/PeriodButtons'
@@ -18,7 +17,7 @@ type Data = {
   tables: Pick<DiningTable, 'id' | 'name'>[]
 }
 
-export function ViewerScreen({ profile }: { profile: Profile }) {
+export function ViewerScreen({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter()
   const [tab, setTab] = useState<'historique' | 'podiums'>('podiums')
   // direct : rechargé à chaque changement en base (Supabase Realtime), secours toutes les 5 s si la connexion tombe
@@ -62,27 +61,9 @@ export function ViewerScreen({ profile }: { profile: Profile }) {
     router.push('/login')
   }
 
-  return (
-    <div className="flex min-h-dvh flex-col">
-      {/* ---------- bandeau ---------- */}
-      <header className="sticky top-0 z-30 border-b border-line bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
-          <span className="text-xl font-black tracking-tight">Tablo · Ventes</span>
-          <LiveBadge connected={connected} />
-          {profile.role === 'admin' ? (
-            <Link href="/" className="btn btn-sm btn-ghost ml-auto">
-              Quitter
-            </Link>
-          ) : (
-            <button className="btn btn-sm btn-ghost ml-auto" onClick={signOut}>
-              Déconnexion
-            </button>
-          )}
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-6xl flex-1 space-y-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        {error && <div className="card border-red-500 p-3 text-sm text-red-200">Erreur : {error} — nouvel essai automatique</div>}
+  const content = (
+      <div className="space-y-4">
+        {error &&<div className="card border-red-500 p-3 text-sm text-red-200">Erreur : {error} — nouvel essai automatique</div>}
 
         {!d || !lk ? (
           !error && <p className="p-8 text-center text-muted">Chargement…</p>
@@ -138,7 +119,34 @@ export function ViewerScreen({ profile }: { profile: Profile }) {
             )}
           </>
         )}
-      </main>
+      </div>
+  )
+
+  // admin : simple onglet dans l'appli (en-tête et barre du bas de l'appli restent visibles)
+  if (embedded)
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Ventes</h1>
+          <LiveBadge connected={connected} />
+        </div>
+        {content}
+      </div>
+    )
+
+  // viewer : écran seul, sans accès aux autres pages
+  return (
+    <div className="flex min-h-dvh flex-col">
+      <header className="sticky top-0 z-30 border-b border-line bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
+          <span className="text-xl font-black tracking-tight">Tablo · Ventes</span>
+          <LiveBadge connected={connected} />
+          <button className="btn btn-sm btn-ghost ml-auto" onClick={signOut}>
+            Déconnexion
+          </button>
+        </div>
+      </header>
+      <main className="mx-auto w-full max-w-6xl flex-1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{content}</main>
     </div>
   )
 }

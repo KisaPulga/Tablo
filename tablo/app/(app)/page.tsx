@@ -46,7 +46,8 @@ export default function TablesPage() {
   const placed = data.tables.filter(isPlaced)
 
   return (
-    <div className="space-y-4">
+    // -mb-9 : compense la grande marge du bas de la page pour que le plan tienne sans faire défiler
+    <div className={`space-y-4 ${placed.length > 0 ? '-mb-9' : ''}`}>
       <h1 className="text-2xl font-bold">Tables</h1>
       {data.tables.length === 0 && (
         <p className="card p-4 text-muted">Aucune table. L&apos;admin peut en ajouter dans Admin → Tables.</p>
