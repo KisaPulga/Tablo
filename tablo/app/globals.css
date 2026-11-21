@@ -95,12 +95,3 @@ body::before {
 .animate-flash {
   animation: flash 0.5s ease-in-out 3;
 }
-
-/* barre du chrono de l'écran Ventes (remplissage en 5 s) */
-@keyframes refill {
-  from { width: 0%; }
-  to { width: 100%; }
-}
-.animate-refill {
-  animation: refill 5s linear forwards;
-}

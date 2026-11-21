@@ -2,17 +2,15 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { PeriodButtons, inPeriod } from '@/components/PeriodButtons'
 import { StatusChip } from '@/components/ui'
 import { formatPrice, formatTime, itemsCount, itemsTotal } from '@/lib/format'
-import { fetchAll, must, sb } from '@/lib/live'
+import { fetchAll, must, sb, useLive } from '@/lib/live'
 import { computeDecompte, type Agg, type Lookup } from '@/lib/stats'
 import { isCounted, type DiningTable, type Profile, type TicketWithItems } from '@/lib/types'
 
-/** Écran en lecture seule : historique des ventes + podiums, rafraîchi toutes les 5 s */
-
-const REFRESH_SECONDS = 5
+/** Écran en lecture seule : historique des ventes + podiums, mis à jour en direct */
 
 type Data = {
   tickets: TicketWithItems[]
@@ -23,19 +21,9 @@ type Data = {
 export function ViewerScreen({ profile }: { profile: Profile }) {
   const router = useRouter()
   const [tab, setTab] = useState<'historique' | 'podiums'>('podiums')
-  const [data, setData] = useState<Data | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [left, setLeft] = useState(REFRESH_SECONDS)
-  const [cycle, setCycle] = useState(0)
-  const [updatedAt, setUpdatedAt] = useState<number | null>(null)
-  const [loading, setLoading] = useState(false)
-  const pending = useRef(false)
-
-  const load = useCallback(async () => {
-    if (pending.current) return
-    pending.current = true
-    setLoading(true)
-    try {
+  // direct : rechargé à chaque changement en base (Supabase Realtime), secours toutes les 5 s si la connexion tombe
+  const { data, error, connected } = useLive<Data>(
+    async () => {
       const [tickets, profiles, tables] = await Promise.all([
         fetchAll<TicketWithItems>((from, to) =>
           sb()
@@ -48,39 +36,14 @@ export function ViewerScreen({ profile }: { profile: Profile }) {
         sb().from('profiles').select('id, display_name, role'),
         sb().from('tables').select('id, name'),
       ])
-      setData({
+      return {
         tickets,
         profiles: must(profiles) as Data['profiles'],
         tables: must(tables) as Data['tables'],
-      })
-      setError(null)
-      setUpdatedAt(Date.now())
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      pending.current = false
-      setLoading(false)
-    }
-  }, [])
-
-  // ---------- chrono : rechargement toutes les 5 s ----------
-  useEffect(() => {
-    let n = REFRESH_SECONDS
-    const first = setTimeout(load, 0)
-    const id = setInterval(() => {
-      n -= 1
-      if (n <= 0) {
-        n = REFRESH_SECONDS
-        setCycle((c) => c + 1)
-        void load()
       }
-      setLeft(n)
-    }, 1000)
-    return () => {
-      clearTimeout(first)
-      clearInterval(id)
-    }
-  }, [load])
+    },
+    { tables: ['tickets', 'ticket_items', 'tables'], fallbackMs: 5000 },
+  )
 
   const lk = useMemo<Lookup | null>(() => {
     if (!data) return null
@@ -105,7 +68,7 @@ export function ViewerScreen({ profile }: { profile: Profile }) {
       <header className="sticky top-0 z-30 border-b border-line bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
           <span className="text-xl font-black tracking-tight">Tablo · Ventes</span>
-          <RefreshTimer left={left} loading={loading} updatedAt={updatedAt} error={!!error} />
+          <LiveBadge connected={connected} />
           {profile.role === 'admin' ? (
             <Link href="/" className="btn btn-sm btn-ghost ml-auto">
               Quitter
@@ -116,14 +79,10 @@ export function ViewerScreen({ profile }: { profile: Profile }) {
             </button>
           )}
         </div>
-        {/* barre de progression du chrono */}
-        <div className="h-1 bg-surface">
-          <div key={cycle} className="animate-refill h-full bg-accent" />
-        </div>
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 space-y-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        {error && <div className="card border-red-500 p-3 text-sm text-red-200">Erreur : {error} — nouvel essai dans {left} s</div>}
+        {error && <div className="card border-red-500 p-3 text-sm text-red-200">Erreur : {error} — nouvel essai automatique</div>}
 
         {!d || !lk ? (
           !error && <p className="p-8 text-center text-muted">Chargement…</p>
@@ -184,18 +143,17 @@ export function ViewerScreen({ profile }: { profile: Profile }) {
   )
 }
 
-/* ============================== CHRONO ============================== */
+/* ============================== DIRECT ============================== */
 
-function RefreshTimer({ left, loading, updatedAt, error }: { left: number; loading: boolean; updatedAt: number | null; error: boolean }) {
+function LiveBadge({ connected }: { connected: boolean }) {
   return (
-    <div className="flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-sm">
-      <span className={`h-2.5 w-2.5 rounded-full ${error ? 'animate-pulse bg-red-500' : loading ? 'animate-pulse bg-amber-400' : 'bg-emerald-400'}`} />
-      <span className="font-bold tabular-nums">{loading ? '…' : `${left} s`}</span>
-      {updatedAt && (
-        <span className="hidden text-xs text-muted sm:inline">
-          màj {new Date(updatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-        </span>
-      )}
+    <div
+      className={`flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-bold ${
+        connected ? 'border-emerald-400 text-emerald-300' : 'border-red-500 bg-red-900 text-red-200'
+      }`}
+    >
+      <span className={`h-2.5 w-2.5 rounded-full ${connected ? 'animate-pulse bg-emerald-400' : 'bg-red-500'}`} />
+      {connected ? 'En direct' : 'Reconnexion…'}
     </div>
   )
 }
