@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { PeriodButtons, inPeriod } from '@/components/PeriodButtons'
 import { StatusChip } from '@/components/ui'
 import { formatPrice, formatTime, itemsCount, itemsTotal } from '@/lib/format'
 import { fetchAll, must, sb } from '@/lib/live'
@@ -88,7 +89,10 @@ export function ViewerScreen({ profile }: { profile: Profile }) {
     return { waiterName: (id) => w.get(id) ?? '?', tableName: (id) => t.get(id) ?? '?' }
   }, [data])
 
-  const d = useMemo(() => (data && lk ? computeDecompte(data.tickets, lk) : null), [data, lk])
+  // période choisie (Tout / Ven. / Sam.) : s'applique aux chiffres, aux podiums et à l'historique
+  const [period, setPeriod] = useState({ from: '', to: '' })
+  const tickets = useMemo(() => (data ? inPeriod(data.tickets, period.from, period.to) : []), [data, period])
+  const d = useMemo(() => (data && lk ? computeDecompte(tickets, lk) : null), [data, lk, tickets])
 
   async function signOut() {
     await sb().auth.signOut()
@@ -125,6 +129,10 @@ export function ViewerScreen({ profile }: { profile: Profile }) {
           !error && <p className="p-8 text-center text-muted">Chargement…</p>
         ) : (
           <>
+            <section className="card p-3">
+              <PeriodButtons from={period.from} to={period.to} onChange={(from, to) => setPeriod({ from, to })} />
+            </section>
+
             {/* ---------- chiffres clés ---------- */}
             <section className="card grid grid-cols-3 divide-x divide-line text-center">
               <Kpi label="Chiffre d'affaires" value={formatPrice(d.total.cents)} />
@@ -167,7 +175,7 @@ export function ViewerScreen({ profile }: { profile: Profile }) {
                 />
               </div>
             ) : (
-              <History tickets={data!.tickets} profiles={data!.profiles} lk={lk} />
+              <History tickets={tickets} profiles={data!.profiles} lk={lk} />
             )}
           </>
         )}
