@@ -78,7 +78,7 @@ export default function TicketsPage() {
           <select className="input" value={waiterId} onChange={(e) => setWaiterId(e.target.value)} aria-label="Serveur">
             <option value="">Tous serveurs</option>
             {data.profiles
-              .filter((p) => p.role !== 'bar')
+              .filter((p) => p.role !== 'bar' && p.role !== 'viewer')
               .map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.display_name}

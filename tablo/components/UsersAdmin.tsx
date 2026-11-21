@@ -12,7 +12,7 @@ import { ROLE_LABEL, type Profile, type Role } from '@/lib/types'
 
 export type UserRow = Profile & { email: string; last_sign_in_at: string | null; invited_pending: boolean }
 
-const ROLES: Role[] = ['serveur', 'bar', 'admin']
+const ROLES: Role[] = ['serveur', 'bar', 'viewer', 'admin']
 
 export function UsersAdmin({ users, meId, configError }: { users: UserRow[]; meId: string; configError: string | null }) {
   const toast = useToast()

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { BarList, TimeChart } from '@/components/Charts'
+import { PeriodButtons } from '@/components/PeriodButtons'
 import { useToast } from '@/components/Toaster'
 import { Loading } from '@/components/ui'
 import { csvEuros, downloadCsv, formatDuration, formatPrice, formatTime, itemsCount, itemsTotal } from '@/lib/format'
@@ -303,7 +304,7 @@ function Stats({
     [data.tickets, lk, fromTs, toTs, waiterId, bucket],
   )
 
-  const waiters = data.profiles.filter((p) => p.role !== 'bar')
+  const waiters = data.profiles.filter((p) => p.role !== 'bar' && p.role !== 'viewer')
 
   const fmtMetric = metric === 'cents' ? formatPrice : (v: number) => `${v} art.`
   const pct = (x: number) => `${Math.round(x * 100)} %`
@@ -579,13 +580,6 @@ function DeleteAllTickets() {
 
 /* ============================== PÉRIODE ============================== */
 
-/** Date → valeur d'un <input type="datetime-local"> (heure locale) */
-function toLocalInput(d: Date) {
-  const x = new Date(d)
-  x.setMinutes(x.getMinutes() - x.getTimezoneOffset())
-  return x.toISOString().slice(0, 16)
-}
-
 function fmtInput(v: string) {
   return new Date(v).toLocaleString('fr-FR', {
     weekday: 'short',
@@ -601,12 +595,6 @@ function fileSuffix(periodLabel: string) {
   return '-' + periodLabel.normalize('NFD').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
 }
 
-/** Vendredi de l'événement : vendredi 20 novembre 2026 (mois 10 = novembre, comptés à partir de 0) */
-const EVENT_FRIDAY = new Date(2026, 10, 20)
-
-function at(base: Date, addDays: number, hour: number) {
-  return new Date(base.getFullYear(), base.getMonth(), base.getDate() + addDays, hour, 0)
-}
 
 function PeriodBar({
   from,
@@ -619,41 +607,16 @@ function PeriodBar({
   setFrom: (v: string) => void
   setTo: (v: string) => void
 }) {
-  const fri = EVENT_FRIDAY
-  const presets = [
-    // vendredi : toute la journée jusqu'au samedi 4 h
-    { label: 'Ven.', day: at(fri, 0, 0), from: toLocalInput(at(fri, 0, 0)), to: toLocalInput(at(fri, 1, 4)) },
-    // samedi : 18 h jusqu'au dimanche 4 h
-    { label: 'Sam.', day: at(fri, 1, 0), from: toLocalInput(at(fri, 1, 18)), to: toLocalInput(at(fri, 2, 4)) },
-  ]
-  const set = (f: string, t: string) => {
-    setFrom(f)
-    setTo(t)
-  }
-
   return (
     <section className="card space-y-2 p-3">
-      {/* toujours sur une seule ligne, même sur petit écran */}
-      <div className="flex items-center gap-1.5">
-        <span className="shrink-0 text-sm font-bold">Période</span>
-        <button
-          className={`btn btn-sm min-w-0 flex-1 px-2 whitespace-nowrap ${!from && !to ? 'btn-primary' : 'btn-ghost'}`}
-          onClick={() => set('', '')}
-        >
-          Tout
-        </button>
-        {presets.map((p) => (
-          <button
-            key={p.label}
-            className={`btn btn-sm min-w-0 flex-[1.6] px-2 whitespace-nowrap ${
-              from === p.from && to === p.to ? 'btn-primary' : 'btn-ghost'
-            }`}
-            onClick={() => set(p.from, p.to)}
-          >
-            {p.label} {p.day.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
-          </button>
-        ))}
-      </div>
+      <PeriodButtons
+        from={from}
+        to={to}
+        onChange={(f, t) => {
+          setFrom(f)
+          setTo(t)
+        }}
+      />
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <label className="flex min-w-0 items-center gap-2 text-xs text-muted">
           <span className="w-14 shrink-0">Depuis</span>

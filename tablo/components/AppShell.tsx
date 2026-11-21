@@ -33,6 +33,7 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
     ...(profile.role === 'admin'
       ? [
           { href: '/bar', label: 'Bar', icon: '🍸', active: false },
+          { href: '/viewer', label: 'Ventes', icon: '🏆', active: false },
           { href: '/admin', label: 'Admin', icon: '⚙', active: pathname.startsWith('/admin') },
         ]
       : []),
